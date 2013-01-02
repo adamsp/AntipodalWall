@@ -412,7 +412,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			addAndLayoutChild(newBottomchild, LAYOUT_MODE_BELOW, left, columnNumber);
 			bottomEdge += newBottomchild.getMeasuredHeight();
 			mColumnHeights[columnNumber] = bottomEdge;
-			columnNumber = findLowerColumn(mColumnHeights);
+			bottomEdge = mColumnHeights[findLowerColumn(mColumnHeights)];
 		}
 		
 //		while (shortestColumnBottomEdge <= getHeight()
@@ -468,12 +468,13 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// moment
 		int left = this.paddingL + l + (int) (this.columnWidth * columnNumber)
 				+ (this.horizontalSpacing * columnNumber);
-		// TODO This line only handles adding below
+		int childHeight = child.getMeasuredHeight();
+		int childWidth = child.getMeasuredWidth();
 		child.layout(left, mColumnHeights[columnNumber] + this.paddingT,
-				left + child.getMeasuredWidth(),
-				mColumnHeights[columnNumber] + child.getMeasuredHeight()
+				left + childWidth,
+				mColumnHeights[columnNumber] + childHeight
 						+ this.paddingT);
-		mColumnHeights[columnNumber] = mColumnHeights[columnNumber] + child.getMeasuredHeight()
+		mColumnHeights[columnNumber] = mColumnHeights[columnNumber] + childHeight
 				+ this.verticalSpacing;
 		LayoutParams params = child.getLayoutParams();
 		if (params == null) {
@@ -536,7 +537,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		if (mAdapter == null) {
 			return;
 		}
-		// TODO The views are being measured, then we get a new one in onLayout. BIT OF AN OOPS EH?
 		int parentWidth = MeasureSpec.getSize(widthMeasureSpec);
 		// Usable width for children once padding is removed
 		int parentUsableWidth = parentWidth - this.paddingL - this.paddingR;
@@ -560,21 +560,47 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		int childWidthSpec = MeasureSpec.makeMeasureSpec(
 				(int) this.columnWidth, MeasureSpec.EXACTLY);
 		// ... but let them grow vertically
-		int childHeightSpec = MeasureSpec.makeMeasureSpec(0,
-				MeasureSpec.UNSPECIFIED);
+		int childHeightSpec;
 		int shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
 		while (shortestColumnBottomEdge <= getHeight()
 				&& lastItemPositionDuringMeasure < mAdapter.getCount() - 1) {
-			lastItemPositionDuringMeasure++;
 			final View newBottomchild = mAdapter.getView(lastItemPositionDuringMeasure,
 					getCachedView(), this);
 			mViewsAcquiredFromAdapterDuringMeasure.put(lastItemPositionDuringMeasure, newBottomchild);
 			mViewIDToColumnNumberMap.put(newBottomchild.getId(), shortestColumnNumber);
+			int originalWidth = newBottomchild.getMeasuredWidth();
+			int originalHeight = newBottomchild.getMeasuredHeight();
+			/**
+			 * If either the measured height or width of the original is 0 that
+			 * probably just means that whoever supplied our view hasn't
+			 * specified the size of the view themselves. In this case we fall
+			 * back to the default behaviour of specifying the width and
+			 * allowing the height to grow.
+			 * 
+			 * It is advised to call View.measure(widthMeasureSpec,
+			 * heightMeasureSpec); in your adapters getView(...) method with a
+			 * specific width and height spec. Not doing this can result in
+			 * unexpected behaviour - specifically, images were being placed in
+			 * columns with large gaps between them when using
+			 * MeasureSpec.UNSPECIFIED. This was (as of Jan 1, 2013) tested on a
+			 * Nexus One running 2.3.3.
+			 * 
+			 */
+			if(originalWidth == 0 || originalHeight == 0) {
+				childHeightSpec = MeasureSpec.makeMeasureSpec(0,
+						MeasureSpec.UNSPECIFIED);
+			} else {
+				double scaleRatio = originalWidth / columnWidth;
+				int newHeight = (int) (originalHeight / scaleRatio);
+				childHeightSpec = MeasureSpec.makeMeasureSpec(newHeight,
+						MeasureSpec.EXACTLY);
+			}
 			newBottomchild.measure(childWidthSpec, childHeightSpec);
 			shortestColumnBottomEdge += newBottomchild.getMeasuredHeight();
 			columnHeightsDuringMeasure[shortestColumnNumber] = shortestColumnBottomEdge;
 			shortestColumnNumber = findLowerColumn(columnHeightsDuringMeasure);
 			shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
+			lastItemPositionDuringMeasure++;
 		}
 		
 		// get the final heigth of the viewgroup. it will be that of the higher
