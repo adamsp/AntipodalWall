@@ -80,7 +80,72 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	
 	private int[] mColumnHeights;
 	
+	/**
+	 * Views acquired from the adapter during measure,
+	 * should be re-used during layout. Key is the views
+	 * position (either mLast or mFirstItemPosition).
+	 */
 	private SparseArray<View> mViewsAcquiredFromAdapterDuringMeasure;
+	
+	/**
+	 * Maps a views unique ID to an integer describing
+	 * which column it belongs to.
+	 */
+	private SparseArray<Integer> mViewIDToColumnNumberMap;
+
+	private int columns;
+	private float columnWidth = 0;
+	private int paddingL;
+	private int paddingT;
+	private int paddingR;
+	private int paddingB;
+	int parentHeight = 0;
+	private int finalHeight = 0;
+	private int y_move = 0;
+	private int mPosition = 0;
+	private int horizontalSpacing;
+	private int verticalSpacing;
+
+	public AntipodalWallLayout(Context context, AttributeSet attrs) {
+		super(context, attrs);
+
+		setWillNotDraw(false);
+
+		// Load the attrs from the XML
+		final TypedArray a = context.obtainStyledAttributes(attrs,
+				R.styleable.AntipodalWallAttrs);
+		// - scrollbars
+		initializeScrollbars(a);
+		// - number of columns
+		this.columns = a.getInt(
+				R.styleable.AntipodalWallAttrs_android_columnCount, 1);
+		if (this.columns < 1)
+			this.columns = 1;
+		mColumnHeights = new int[this.columns];
+		
+		// - general padding (padding was not being handled correctly)
+		setGeneralPadding(a.getDimensionPixelSize(
+				R.styleable.AntipodalWallAttrs_android_padding, 0));
+		// - specific paddings
+		this.paddingL = a.getDimensionPixelSize(
+				R.styleable.AntipodalWallAttrs_android_paddingLeft, 0);
+		this.paddingT = a.getDimensionPixelSize(
+				R.styleable.AntipodalWallAttrs_android_paddingTop, 0);
+		this.paddingR = a.getDimensionPixelSize(
+				R.styleable.AntipodalWallAttrs_android_paddingRight, 0);
+		this.paddingB = a.getDimensionPixelSize(
+				R.styleable.AntipodalWallAttrs_android_paddingBottom, 0);
+		// - spacing
+		this.horizontalSpacing = a.getDimensionPixelSize(
+				R.styleable.AntipodalWallAttrs_android_horizontalSpacing, 0);
+		this.verticalSpacing = a.getDimensionPixelSize(
+				R.styleable.AntipodalWallAttrs_android_verticalSpacing, 0);
+		
+		mViewsAcquiredFromAdapterDuringMeasure = new SparseArray<View>();
+		mViewIDToColumnNumberMap = new SparseArray<Integer>();
+
+		a.recycle();
+	}
 
 	@Override
 	public boolean onInterceptTouchEvent(final MotionEvent event) {
@@ -332,14 +397,16 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private void fillListDown(int bottomEdge, final int offset, int left) {
 		Log.d("AntipodalWall", "fillListDown called");
-		int columnNumber = findLowerColumn(mColumnHeights);
-		bottomEdge = mColumnHeights[columnNumber];
+		int columnNumber;// = findLowerColumn(mColumnHeights);
+		//bottomEdge = mColumnHeights[columnNumber];
 		while (bottomEdge + offset <= getHeight()
 				&& mLastItemPosition < mAdapter.getCount() - 1) {
 			
 			mLastItemPosition++;
 			final View newBottomchild = mViewsAcquiredFromAdapterDuringMeasure.get(mLastItemPosition);
 			if(newBottomchild == null) continue;
+			columnNumber = mViewIDToColumnNumberMap.get(newBottomchild.getId());
+			bottomEdge = mColumnHeights[columnNumber];
 			// This view gets cached elsewhere for re-use, we don't want to hold a reference to it.
 			mViewsAcquiredFromAdapterDuringMeasure.delete(mLastItemPosition); 
 			addAndLayoutChild(newBottomchild, LAYOUT_MODE_BELOW, left, columnNumber);
@@ -460,59 +527,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		return null;
 	}
 
-	private int columns;
-	private float columnWidth = 0;
-	private int paddingL;
-	private int paddingT;
-	private int paddingR;
-	private int paddingB;
-	int parentHeight = 0;
-	private int finalHeight = 0;
-	private int y_move = 0;
-	private int mPosition = 0;
-	private int horizontalSpacing;
-	private int verticalSpacing;
-
-	public AntipodalWallLayout(Context context, AttributeSet attrs) {
-		super(context, attrs);
-
-		setWillNotDraw(false);
-
-		// Load the attrs from the XML
-		final TypedArray a = context.obtainStyledAttributes(attrs,
-				R.styleable.AntipodalWallAttrs);
-		// - scrollbars
-		initializeScrollbars(a);
-		// - number of columns
-		this.columns = a.getInt(
-				R.styleable.AntipodalWallAttrs_android_columnCount, 1);
-		if (this.columns < 1)
-			this.columns = 1;
-		mColumnHeights = new int[this.columns];
-		
-		// - general padding (padding was not being handled correctly)
-		setGeneralPadding(a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_padding, 0));
-		// - specific paddings
-		this.paddingL = a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_paddingLeft, 0);
-		this.paddingT = a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_paddingTop, 0);
-		this.paddingR = a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_paddingRight, 0);
-		this.paddingB = a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_paddingBottom, 0);
-		// - spacing
-		this.horizontalSpacing = a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_horizontalSpacing, 0);
-		this.verticalSpacing = a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_verticalSpacing, 0);
-		
-		mViewsAcquiredFromAdapterDuringMeasure = new SparseArray<View>();
-
-		a.recycle();
-	}
-
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 		// TODO Needed?
@@ -555,6 +569,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			final View newBottomchild = mAdapter.getView(lastItemPositionDuringMeasure,
 					getCachedView(), this);
 			mViewsAcquiredFromAdapterDuringMeasure.put(lastItemPositionDuringMeasure, newBottomchild);
+			mViewIDToColumnNumberMap.put(newBottomchild.getId(), shortestColumnNumber);
 			newBottomchild.measure(childWidthSpec, childHeightSpec);
 			shortestColumnBottomEdge += newBottomchild.getMeasuredHeight();
 			columnHeightsDuringMeasure[shortestColumnNumber] = shortestColumnBottomEdge;
