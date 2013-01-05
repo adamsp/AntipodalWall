@@ -93,6 +93,11 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private SparseArray<Integer> mViewIDToColumnNumberMap;
 
+	/**
+	 * The scroll position of the list. Should never drop below 0.
+	 */
+	private int mScrolledPosition = 0;
+	
 	private int columns;
 	private float columnWidth = 0;
 	private int paddingL;
@@ -102,7 +107,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	int parentHeight = 0;
 	private int finalHeight = 0;
 	private int y_move = 0;
-	private int mPosition = 0;
+	
 	private int horizontalSpacing;
 	private int verticalSpacing;
 
@@ -174,7 +179,9 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// save the start place
 		mTouchStartX = (int) event.getX();
 		mTouchStartY = (int) event.getY();
-		mListTopStart = getChildAt(0).getTop() - mListTopOffset;
+		View topChild = getChildAt(0);
+		if(topChild != null)
+			mListTopStart = getChildAt(0).getTop() - mListTopOffset;
 
 		// start checking for a long press
 		startLongPressCheck();
@@ -196,15 +203,18 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	}
 
 	/**
-	 * Scrolls the list. Takes care of updating rotation (if enabled) and
-	 * snapping
+	 * Scrolls the list. Handles not scrolling past the top of the list.
 	 * 
-	 * @param scrolledDistance
+	 * @param scrollDistance
 	 *            The distance to scroll
 	 */
-	private void scrollList(final int scrolledDistance) {
-		mListTop = mListTopStart + scrolledDistance;
-		requestLayout();
+	private void scrollList(int scrollDistance) {
+		if(mScrolledPosition + scrollDistance < 0) {
+			scrollDistance = -mScrolledPosition;
+		}
+		mScrolledPosition += scrollDistance;
+		mListTop = mListTopStart + scrollDistance;
+		scrollBy(0, scrollDistance);
 	}
 
 	/**
@@ -648,55 +658,59 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		// if (getChildCount() == 0) {
-		// return false;
-		// }
-		// switch (event.getAction()) {
-		// case MotionEvent.ACTION_DOWN:
-		// startTouch(event);
-		// break;
-		//
-		// case MotionEvent.ACTION_MOVE:
-		// if (mTouchState == TOUCH_STATE_CLICK) {
-		// startScrollIfNeeded(event);
-		// }
-		// if (mTouchState == TOUCH_STATE_SCROLL) {
-		// scrollList((int)event.getY() - mTouchStartY);
-		// }
-		// break;
-		//
-		// case MotionEvent.ACTION_UP:
-		// if (mTouchState == TOUCH_STATE_CLICK) {
-		// clickChildAt((int)event.getX(), (int)event.getY());
-		// }
-		// endTouch();
-		// break;
-		//
-		// default:
-		// endTouch();
-		// break;
-		// }
-		// return true;
-		awakenScrollBars();
-		int eventaction = event.getAction();
-		switch (eventaction) {
+		if (getChildCount() == 0) {
+			return false;
+		}
+		switch (event.getAction()) {
+		case MotionEvent.ACTION_DOWN:
+			startTouch(event);
+			break;
+
 		case MotionEvent.ACTION_MOVE:
-			// handle vertical scrolling
-			if (isVerticalScrollBarEnabled()) {
-				if (event.getHistorySize() > 0) {
-					this.y_move = -(int) (event.getY() - event
-							.getHistoricalY(event.getHistorySize() - 1));
-					int result_scroll = getScrollY() + this.y_move;
-					if (result_scroll >= 0
-							&& result_scroll <= this.finalHeight
-									- this.parentHeight)
-						scrollBy(0, this.y_move);
-				}
+			if (mTouchState == TOUCH_STATE_CLICK) {
+				startScrollIfNeeded(event);
+			}
+			if (mTouchState == TOUCH_STATE_SCROLL) {
+				int eventY = (int) event.getY();
+				int scrollDistance = - (eventY - mTouchStartY);
+				scrollList(scrollDistance);
+				// Reset the "start" position each time.
+				mTouchStartY = eventY;
 			}
 			break;
+
+		case MotionEvent.ACTION_UP:
+			if (mTouchState == TOUCH_STATE_CLICK) {
+				clickChildAt((int) event.getX(), (int) event.getY());
+			}
+			endTouch();
+			break;
+
+		default:
+			endTouch();
+			break;
 		}
-		invalidate();
 		return true;
+//		awakenScrollBars();
+//		int eventaction = event.getAction();
+//		switch (eventaction) {
+//		case MotionEvent.ACTION_MOVE:
+//			// handle vertical scrolling
+//			if (isVerticalScrollBarEnabled()) {
+//				if (event.getHistorySize() > 0) {
+//					this.y_move = -(int) (event.getY() - event
+//							.getHistoricalY(event.getHistorySize() - 1));
+//					int result_scroll = getScrollY() + this.y_move;
+//					if (result_scroll >= 0
+//							&& result_scroll <= this.finalHeight
+//									- this.parentHeight)
+//						scrollBy(0, this.y_move);
+//				}
+//			}
+//			break;
+//		}
+//		invalidate();
+//		return true;
 	}
 
 	private int findLowerColumn(int[] columns) {
