@@ -98,12 +98,21 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private int mScrolledPosition = 0;
 	
+	/**
+	 * The width spec of child items.
+	 */
+	private int mChildWidthSpec;
+	
 	private int columns;
 	private float columnWidth = 0;
 	private int paddingL;
 	private int paddingT;
 	private int paddingR;
 	private int paddingB;
+	/**
+	 * The height of the view on screen in pixels.
+	 * TODO: Check that this gets updated during rotation.
+	 */
 	int parentHeight = 0;
 	private int finalHeight = 0;
 	private int y_move = 0;
@@ -215,6 +224,10 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		mScrolledPosition += scrollDistance;
 		mListTop = mListTopStart + scrollDistance;
 		scrollBy(0, scrollDistance);
+		if(scrollDistance != 0) {
+			//final int offset = mListTop + mListTopOffset - getChildAt(0).getTop();
+			fillList(mScrolledPosition, 0);
+		}
 	}
 
 	/**
@@ -407,18 +420,29 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private void fillListDown(int bottomEdge, final int offset, int left) {
 		Log.d("AntipodalWall", "fillListDown called");
-		int columnNumber;// = findLowerColumn(mColumnHeights);
-		//bottomEdge = mColumnHeights[columnNumber];
-		while (bottomEdge + offset <= getHeight()
+		int columnNumber = findLowerColumn(mColumnHeights);
+		bottomEdge = mColumnHeights[columnNumber];
+		while (bottomEdge - offset <= parentHeight
 				&& mLastItemPosition < mAdapter.getCount() - 1) {
 			
 			mLastItemPosition++;
-			final View newBottomchild = mViewsAcquiredFromAdapterDuringMeasure.get(mLastItemPosition);
-			if(newBottomchild == null) continue;
-			columnNumber = mViewIDToColumnNumberMap.get(newBottomchild.getId());
+			View newBottomchild = mViewsAcquiredFromAdapterDuringMeasure.get(mLastItemPosition);
+			if(newBottomchild == null) {
+				// TODO Check that this view gets added to the cache for re-use?
+				newBottomchild = mAdapter.getView(mLastItemPosition, getCachedView(), this);
+				measureChild(newBottomchild);
+			} else {
+				// This view gets cached elsewhere for re-use, we don't want to hold a reference to it.
+				mViewsAcquiredFromAdapterDuringMeasure.delete(mLastItemPosition);
+			}
+			int childId = newBottomchild.getId();
+			if(mViewIDToColumnNumberMap.indexOfKey(childId) < 0) {
+				columnNumber = findLowerColumn(mColumnHeights);
+				mViewIDToColumnNumberMap.put(childId, columnNumber);
+			} else {
+				columnNumber = mViewIDToColumnNumberMap.get(childId);
+			}
 			bottomEdge = mColumnHeights[columnNumber];
-			// This view gets cached elsewhere for re-use, we don't want to hold a reference to it.
-			mViewsAcquiredFromAdapterDuringMeasure.delete(mLastItemPosition); 
 			addAndLayoutChild(newBottomchild, LAYOUT_MODE_BELOW, left, columnNumber);
 			bottomEdge += newBottomchild.getMeasuredHeight();
 			mColumnHeights[columnNumber] = bottomEdge;
@@ -563,49 +587,21 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 				/ this.columns
 				- ((this.horizontalSpacing * (this.columns - 1)) / this.columns);
 		
+		// force the width of the children to be that of the columns...
+		mChildWidthSpec = MeasureSpec.makeMeasureSpec((int) this.columnWidth, MeasureSpec.EXACTLY);
+		// ... but let them grow vertically
 		int lastItemPositionDuringMeasure = mLastItemPosition;
 		int[] columnHeightsDuringMeasure = mColumnHeights.clone();
 		int shortestColumnNumber = findLowerColumn(columnHeightsDuringMeasure);
-		// force the width of the children to be that of the columns...
-		int childWidthSpec = MeasureSpec.makeMeasureSpec(
-				(int) this.columnWidth, MeasureSpec.EXACTLY);
-		// ... but let them grow vertically
-		int childHeightSpec;
 		int shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
 		while (shortestColumnBottomEdge <= getHeight()
 				&& lastItemPositionDuringMeasure < mAdapter.getCount() - 1) {
 			final View newBottomchild = mAdapter.getView(lastItemPositionDuringMeasure,
 					getCachedView(), this);
+			measureChild(newBottomchild);
 			mViewsAcquiredFromAdapterDuringMeasure.put(lastItemPositionDuringMeasure, newBottomchild);
 			mViewIDToColumnNumberMap.put(newBottomchild.getId(), shortestColumnNumber);
-			int originalWidth = newBottomchild.getMeasuredWidth();
-			int originalHeight = newBottomchild.getMeasuredHeight();
-			/**
-			 * If either the measured height or width of the original is 0 that
-			 * probably just means that whoever supplied our view hasn't
-			 * specified the size of the view themselves. In this case we fall
-			 * back to the default behaviour of specifying the width and
-			 * allowing the height to grow.
-			 * 
-			 * It is advised to call View.measure(widthMeasureSpec,
-			 * heightMeasureSpec); in your adapters getView(...) method with a
-			 * specific width and height spec. Not doing this can result in
-			 * unexpected behaviour - specifically, images were being placed in
-			 * columns with large gaps between them when using
-			 * MeasureSpec.UNSPECIFIED. This was (as of Jan 1, 2013) tested on a
-			 * Nexus One running 2.3.3.
-			 * 
-			 */
-			if(originalWidth == 0 || originalHeight == 0) {
-				childHeightSpec = MeasureSpec.makeMeasureSpec(0,
-						MeasureSpec.UNSPECIFIED);
-			} else {
-				double scaleRatio = originalWidth / columnWidth;
-				int newHeight = (int) (originalHeight / scaleRatio);
-				childHeightSpec = MeasureSpec.makeMeasureSpec(newHeight,
-						MeasureSpec.EXACTLY);
-			}
-			newBottomchild.measure(childWidthSpec, childHeightSpec);
+			
 			shortestColumnBottomEdge += newBottomchild.getMeasuredHeight();
 			columnHeightsDuringMeasure[shortestColumnNumber] = shortestColumnBottomEdge;
 			shortestColumnNumber = findLowerColumn(columnHeightsDuringMeasure);
@@ -618,6 +614,38 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		this.finalHeight = columnHeightsDuringMeasure[findHigherColumn(columnHeightsDuringMeasure)];
 
 		setMeasuredDimension(parentWidth, this.finalHeight);
+	}
+	
+	private void measureChild(View newBottomchild) {
+		int childHeightSpec;
+		int originalWidth = newBottomchild.getMeasuredWidth();
+		int originalHeight = newBottomchild.getMeasuredHeight();
+		/**
+		 * If either the measured height or width of the original is 0 that
+		 * probably just means that whoever supplied our view hasn't
+		 * specified the size of the view themselves. In this case we fall
+		 * back to the default behaviour of specifying the width and
+		 * allowing the height to grow.
+		 * 
+		 * It is advised to call View.measure(widthMeasureSpec,
+		 * heightMeasureSpec); in your adapters getView(...) method with a
+		 * specific width and height spec. Not doing this can result in
+		 * unexpected behaviour - specifically, images were being placed in
+		 * columns with large gaps between them when using
+		 * MeasureSpec.UNSPECIFIED. This was (as of Jan 1, 2013) tested on a
+		 * Nexus One running 2.3.3.
+		 * 
+		 */
+		if(originalWidth == 0 || originalHeight == 0) {
+			childHeightSpec = MeasureSpec.makeMeasureSpec(0,
+					MeasureSpec.UNSPECIFIED);
+		} else {
+			double scaleRatio = originalWidth / columnWidth;
+			int newHeight = (int) (originalHeight / scaleRatio);
+			childHeightSpec = MeasureSpec.makeMeasureSpec(newHeight,
+					MeasureSpec.EXACTLY);
+		}
+		newBottomchild.measure(mChildWidthSpec, childHeightSpec);
 	}
 
 	@Override
