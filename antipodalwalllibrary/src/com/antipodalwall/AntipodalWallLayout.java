@@ -474,6 +474,16 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private void fillListUp(final int offset, int left) {
 		Log.d("AntipodalWall", "fillListUp called");
+		int lowestTopEdge = getLowestTopEdge();
+		while (lowestTopEdge < offset && mFirstItemPosition > 0) {
+			mFirstItemPosition--;
+			View newTopChild = mAdapter.getView(mFirstItemPosition, getCachedView(), this);
+			int columnNumber = mViewIDToColumnNumberMap.get(newTopChild.getId());
+			addAndLayoutChild(newTopChild, LAYOUT_MODE_ABOVE, left, columnNumber);
+			lowestTopEdge = getLowestTopEdge();
+			mListTopOffset -= newTopChild.getMeasuredHeight();
+			
+		}
 //		while (topEdge + offset > 0 && mFirstItemPosition > 0) {
 //			mFirstItemPosition--;
 //			final View newTopCild = mAdapter.getView(mFirstItemPosition,
@@ -486,6 +496,51 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 //			// update the list offset (since we added a view at the top)
 //			mListTopOffset -= childHeight;
 //		}
+	}
+	
+	/**
+	 * Fetches the "lowest" (as in, lowest visible) top edge of a view.
+	 * This will be the top edge of the view that will first reveal empty
+	 * space. Method checks all columns.
+	 * @return
+	 */
+	private int getLowestTopEdge() {
+		// TODO This is some ugly code. Must be a better way to do this. Track
+		// the top edge as we remove views, probably.
+		// The lowest edge
+		int lowestTopEdge = 0;
+		int childCount = getChildCount();
+		if (childCount == 0)
+			return lowestTopEdge;
+		// Have we checked all columns? Because the first N views may all be in
+		// the same column, etc.
+		boolean allColsChecked = false;
+		// set colsChecked[columnNumber] = 1 when the given column number has
+		// been checked.
+		int[] columnsChecked = new int[columns];
+		// top child we're currently checking
+		View topChild;
+		// For iterating through the current children
+		int index = 0;
+		// top edge of the current child
+		int currentTopEdge;
+		while (!allColsChecked && index < childCount) {
+			topChild = getChildAt(index);
+			index++;
+			columnsChecked[mViewIDToColumnNumberMap.get(topChild.getId())] = 1;
+			currentTopEdge = topChild.getTop();
+			if(lowestTopEdge < currentTopEdge)
+				lowestTopEdge = currentTopEdge;
+			for(int col : columnsChecked) {
+				if(col == 0) {
+					allColsChecked = false;
+					break;
+				} else {
+					allColsChecked = true;
+				}
+			}
+		}
+		return lowestTopEdge;
 	}
 
 	/**
