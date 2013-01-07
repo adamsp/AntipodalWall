@@ -111,7 +111,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	private int paddingB;
 	/**
 	 * The height of the view on screen in pixels.
-	 * TODO: Check that this gets updated during rotation.
 	 */
 	int parentHeight = 0;
 	private int finalHeight = 0;
@@ -224,6 +223,8 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		mScrolledPosition += scrollDistance;
 		mListTop = mListTopStart + scrollDistance;
 		scrollBy(0, scrollDistance);
+		//final int offset = mListTop + mListTopOffset - getChildAt(0).getTop();
+		removeNonVisibleViews(mScrolledPosition);
 		if(scrollDistance != 0) {
 			//final int offset = mListTop + mListTopOffset - getChildAt(0).getTop();
 			fillList(mScrolledPosition, 0);
@@ -352,10 +353,11 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		if (mLastItemPosition != mAdapter.getCount() - 1 && childCount > 1) {
 			// check if we should remove any views in the top
 			View firstChild = getChildAt(0);
-			while (firstChild != null && firstChild.getBottom() + offset < 0) {
+			while (firstChild != null && firstChild.getBottom() < offset) {
 				// remove the top view
 				removeViewInLayout(firstChild);
 				childCount--;
+				Log.d("AntipodalWall", "Removing child from top.");
 				mCachedItemViews.addLast(firstChild);
 				mFirstItemPosition++;
 
@@ -377,9 +379,10 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			// check if we should remove any views in the bottom
 			View lastChild = getChildAt(childCount - 1);
 			while (lastChild != null
-					&& lastChild.getTop() + offset > getHeight()) {
+					&& lastChild.getTop() > offset + parentHeight) {
 				// remove the bottom view
 				removeViewInLayout(lastChild);
+				Log.d("AntipodalWall", "Removing child from bottom.");
 				childCount--;
 				mCachedItemViews.addLast(lastChild);
 				mLastItemPosition--;
@@ -661,10 +664,10 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			mLastItemPosition = -1;
 			fillListDown(mListTop, 0, 0);
 		} else {
-			final int offset = mListTop + mListTopOffset
-					- getChildAt(0).getTop();
-			removeNonVisibleViews(offset);
-			fillList(offset, l);
+//			final int offset = mListTop + mListTopOffset
+//					- getChildAt(0).getTop();
+			removeNonVisibleViews(mScrolledPosition);
+			fillList(mScrolledPosition, l);
 		}
 		invalidate();
 	}
