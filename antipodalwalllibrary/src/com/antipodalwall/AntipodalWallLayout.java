@@ -225,9 +225,11 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		scrollBy(0, scrollDistance);
 		//final int offset = mListTop + mListTopOffset - getChildAt(0).getTop();
 		removeNonVisibleViews(mScrolledPosition);
-		if(scrollDistance != 0) {
+		if(scrollDistance > 0) {
 			//final int offset = mListTop + mListTopOffset - getChildAt(0).getTop();
-			fillList(mScrolledPosition, 0);
+			fillListDown(mScrolledPosition, 0);
+		} else if (scrollDistance < 0) {
+			fillListUp(mScrolledPosition, 0);
 		}
 	}
 
@@ -378,11 +380,17 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		if (mFirstItemPosition != 0 && childCount > 1) {
 			// check if we should remove any views in the bottom
 			View lastChild = getChildAt(childCount - 1);
+			int childId;
+			int childColumnNumber;
 			while (lastChild != null
 					&& lastChild.getTop() > offset + parentHeight) {
+				Log.d("AntipodalWall", "Removing child from bottom.");
+				childId = lastChild.getId();
+				childColumnNumber = mViewIDToColumnNumberMap.get(childId);
+				mColumnHeights[childColumnNumber] -= lastChild.getHeight();
+				
 				// remove the bottom view
 				removeViewInLayout(lastChild);
-				Log.d("AntipodalWall", "Removing child from bottom.");
 				childCount--;
 				mCachedItemViews.addLast(lastChild);
 				mLastItemPosition--;
@@ -406,11 +414,9 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private void fillList(final int offset, int left) {
 		Log.d("AntipodalWall", "fillList called");
-		final int bottomEdge = getChildAt(getChildCount() - 1).getBottom();
-		fillListDown(bottomEdge, offset, left);
+		fillListDown(offset, left);
 
-		final int topEdge = getChildAt(0).getTop();
-		fillListUp(topEdge, offset);
+		fillListUp(offset, left);
 	}
 
 	/**
@@ -421,23 +427,16 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 * @param offset
 	 *            Offset of the visible area
 	 */
-	private void fillListDown(int bottomEdge, final int offset, int left) {
+	private void fillListDown(final int offset, int left) {
 		Log.d("AntipodalWall", "fillListDown called");
 		int columnNumber = findLowerColumn(mColumnHeights);
-		bottomEdge = mColumnHeights[columnNumber];
+		int bottomEdge = mColumnHeights[columnNumber];
 		while (bottomEdge - offset <= parentHeight
 				&& mLastItemPosition < mAdapter.getCount() - 1) {
 			
 			mLastItemPosition++;
-			View newBottomchild = mViewsAcquiredFromAdapterDuringMeasure.get(mLastItemPosition);
-			if(newBottomchild == null) {
-				// TODO Check that this view gets added to the cache for re-use?
-				newBottomchild = mAdapter.getView(mLastItemPosition, getCachedView(), this);
-				measureChild(newBottomchild);
-			} else {
-				// This view gets cached elsewhere for re-use, we don't want to hold a reference to it.
-				mViewsAcquiredFromAdapterDuringMeasure.delete(mLastItemPosition);
-			}
+			View newBottomchild = mAdapter.getView(mLastItemPosition, getCachedView(), this);
+			measureChild(newBottomchild);
 			int childId = newBottomchild.getId();
 			if(mViewIDToColumnNumberMap.indexOfKey(childId) < 0) {
 				columnNumber = findLowerColumn(mColumnHeights);
@@ -473,7 +472,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 * @param offset
 	 *            Offset of the visible area
 	 */
-	private void fillListUp(int topEdge, final int offset) {
+	private void fillListUp(final int offset, int left) {
 		Log.d("AntipodalWall", "fillListUp called");
 //		while (topEdge + offset > 0 && mFirstItemPosition > 0) {
 //			mFirstItemPosition--;
@@ -662,10 +661,8 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 
 		if (getChildCount() == 0) {
 			mLastItemPosition = -1;
-			fillListDown(mListTop, 0, 0);
+			fillListDown(0, 0);
 		} else {
-//			final int offset = mListTop + mListTopOffset
-//					- getChildAt(0).getTop();
 			removeNonVisibleViews(mScrolledPosition);
 			fillList(mScrolledPosition, l);
 		}
