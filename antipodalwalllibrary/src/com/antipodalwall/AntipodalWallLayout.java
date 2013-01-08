@@ -1,13 +1,13 @@
 package com.antipodalwall;
 
 import java.util.LinkedList;
+import java.util.Stack;
 
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.util.SparseArray;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -15,6 +15,84 @@ import android.widget.Adapter;
 import android.widget.AdapterView;
 
 public class AntipodalWallLayout extends AdapterView<Adapter> {
+	
+	private class ColumnView {
+		public final int indexIntoAdapter;
+		public final View view;
+		public ColumnView(int index, View view) {
+			this.indexIntoAdapter = index;
+			this.view = view;
+		}
+	}
+	
+	private class Column {
+		int top, bottom;
+		LinkedList<ColumnView> viewsShown;
+		
+		public Column() {
+			viewsShown = new LinkedList<ColumnView>();
+		}
+		
+		public LinkedList<ColumnView> getViews() {
+			return viewsShown;
+		}
+		
+		public int getTop() {
+			return top;
+		}
+		
+		public int getBottom() { 
+			return bottom;
+		}
+		
+		public ColumnView popTopView() {
+			if(viewsShown.isEmpty()) {
+				return null;
+			} else {
+				ColumnView colView = viewsShown.removeFirst();
+				top -= colView.view.getHeight();
+				return colView;
+			}
+		}
+		
+		public ColumnView peekTopView() {
+			if(viewsShown.isEmpty()) {
+				return null;
+			} else {
+				return viewsShown.getFirst();
+			}
+		}
+		
+		public ColumnView popBottomView() {
+			if(viewsShown.isEmpty()) {
+				return null;
+			} else {
+				ColumnView colView = viewsShown.removeLast();
+				bottom -= colView.view.getHeight();
+				return colView;
+			}
+		}
+		
+		public ColumnView peekBottomView() {
+			if(viewsShown.isEmpty()) {
+				return null;
+			} else {
+				return viewsShown.getLast();
+			}
+		}
+		
+		public void addTop(ColumnView v) {
+			// TODO Position view
+			top += v.view.getHeight();
+			viewsShown.addFirst(v);
+		}
+		
+		public void addBottom(ColumnView v) {
+			// TODO Position view
+			bottom += v.view.getHeight();
+			viewsShown.addLast(v);
+		}
+	}
 
 	/** Represents an invalid child index */
 	private static final int INVALID_INDEX = -1;
@@ -49,20 +127,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	/** Y-coordinate of the down event */
 	private int mTouchStartY;
 
-	/**
-	 * The top of the first item when the touch down event was received
-	 */
-	private int mListTopStart;
-
-	/** The current top of the first item */
-	private int mListTop;
-
-	/**
-	 * The offset from the top of the currently first visible item to the top of
-	 * the first item
-	 */
-	private int mListTopOffset;
-
 	/** The adaptor position of the first visible item */
 	private int mFirstItemPosition;
 
@@ -78,23 +142,9 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	/** Reusable rect */
 	private Rect mRect;
 	
-	private int[] mColumnHeights;
-	
-	/**
-	 * Views acquired from the adapter during measure,
-	 * should be re-used during layout. Key is the views
-	 * position (either mLast or mFirstItemPosition).
-	 */
-	private SparseArray<View> mViewsAcquiredFromAdapterDuringMeasure;
-	
-	/**
-	 * Maps a views unique ID to an integer describing
-	 * which column it belongs to.
-	 */
-	private SparseArray<Integer> mViewIDToColumnNumberMap;
-
 	/**
 	 * The scroll position of the list. Should never drop below 0.
+	 * This is how many pixels away from the 0 position we are.
 	 */
 	private int mScrolledPosition = 0;
 	
@@ -103,8 +153,12 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private int mChildWidthSpec;
 	
-	private int columns;
-	private float columnWidth = 0;
+	/** Number of columns */
+	private int mNumberOfColumns;
+	
+	/** Width of each column */
+	private float mColumnWidth = 0;
+	
 	private int paddingL;
 	private int paddingT;
 	private int paddingR;
@@ -112,12 +166,26 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	/**
 	 * The height of the view on screen in pixels.
 	 */
-	int parentHeight = 0;
+	int mParentHeight = 0;
 	private int finalHeight = 0;
-	private int y_move = 0;
 	
 	private int horizontalSpacing;
 	private int verticalSpacing;
+	
+	/**
+	 * Indexes into the adapter for the views above the currently drawn parts of
+	 * each column.
+	 */
+	private Stack<Integer>[] mTopHiddenViewsPerColumn;
+	/**
+	 * Indexes into the adapter for the views below the currently drawn parts of
+	 * each column.
+	 */
+	private Stack<Integer>[] mBottomHiddenViewsPerColumn;
+	/**
+	 * The columns of views to display.
+	 */
+	private Column[] mColumns;
 
 	public AntipodalWallLayout(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -130,11 +198,16 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// - scrollbars
 		initializeScrollbars(a);
 		// - number of columns
-		this.columns = a.getInt(
+		this.mNumberOfColumns = a.getInt(
 				R.styleable.AntipodalWallAttrs_android_columnCount, 1);
-		if (this.columns < 1)
-			this.columns = 1;
-		mColumnHeights = new int[this.columns];
+		if (this.mNumberOfColumns < 1)
+			this.mNumberOfColumns = 1;
+		mTopHiddenViewsPerColumn = new Stack[mNumberOfColumns];
+		mBottomHiddenViewsPerColumn = new Stack[mNumberOfColumns];
+		for(int i = 0; i < mNumberOfColumns; i++){
+			mTopHiddenViewsPerColumn[i] = new Stack<Integer>();
+			mBottomHiddenViewsPerColumn[i] = new Stack<Integer>();
+		}
 		
 		// - general padding (padding was not being handled correctly)
 		setGeneralPadding(a.getDimensionPixelSize(
@@ -153,13 +226,399 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 				R.styleable.AntipodalWallAttrs_android_horizontalSpacing, 0);
 		this.verticalSpacing = a.getDimensionPixelSize(
 				R.styleable.AntipodalWallAttrs_android_verticalSpacing, 0);
-		
-		mViewsAcquiredFromAdapterDuringMeasure = new SparseArray<View>();
-		mViewIDToColumnNumberMap = new SparseArray<Integer>();
 
 		a.recycle();
 	}
 
+	/**
+	 * Scrolls the list. Handles not scrolling past the top of the list.
+	 * 
+	 * @param scrollDistance
+	 *            The distance to scroll
+	 */
+	private void scrollList(int scrollDistance) {
+		if(mScrolledPosition + scrollDistance < 0) {
+			scrollDistance = -mScrolledPosition;
+		}
+		mScrolledPosition += scrollDistance;
+		scrollBy(0, scrollDistance);
+		removeNonVisibleViews(mScrolledPosition);
+		if(scrollDistance > 0) {
+			fillListDown(mScrolledPosition);
+		} else if (scrollDistance < 0) {
+			fillListUp(mScrolledPosition);
+		}
+	}
+
+	/**
+	 * Removes view that are outside of the visible part of the list. Will not
+	 * remove all views.
+	 * 
+	 * @param offset
+	 *            Offset of the visible area
+	 */
+	private void removeNonVisibleViews(final int offset) {
+		// We need to keep close track of the child count in this function. We
+		// should never remove all the views, because if we do, we loose track
+		// of were we are.
+		ColumnView poppedView;
+		for(int i = 0; i < mNumberOfColumns; i++) {
+			// Remove hidden views from top of columns
+			while(mColumns[i].peekTopView() != null 
+					&& mColumns[i].peekTopView().view.getBottom() < offset) {
+				poppedView = mColumns[i].popTopView();
+				removeViewInLayout(poppedView.view);
+				mTopHiddenViewsPerColumn[i].add(poppedView.indexIntoAdapter);
+				mCachedItemViews.add(poppedView.view);
+			}
+			// Remove hidden views from bottom of columns
+			while(mColumns[i].peekBottomView() != null 
+					&& mColumns[i].peekBottomView().view.getTop() < (offset + mParentHeight)) {
+				poppedView = mColumns[i].popBottomView();
+				removeViewInLayout(poppedView.view);
+				mBottomHiddenViewsPerColumn[i].add(poppedView.indexIntoAdapter);
+			}
+		}
+	}
+	
+	private void fillList(final int offset) {
+		fillListUp(offset);
+		fillListDown(offset);
+	}
+
+	/**
+	 * Starts at the bottom and adds children downwards until we've filled the
+	 * view.
+	 * 
+	 * @param offset
+	 *            Offset of the visible area
+	 */
+	private void fillListDown(final int offset) {
+		Log.d("AntipodalWall", "fillListDown called with offset " + offset);
+		int shortestColumnIndex = findShortestColumnIndex(mColumns);
+		int shortestEdge = mColumns[shortestColumnIndex].getBottom();
+		View newBottomChild;
+		int adapterIndex;
+		while (shortestEdge - offset <= mParentHeight) {
+			// We've reached the bottom of our previously seen views, need a new one.
+			if(mBottomHiddenViewsPerColumn[shortestColumnIndex].isEmpty()) {
+				mLastItemPosition++;
+				// The adapter has run out of views - stop adding views.
+				if(mLastItemPosition == mAdapter.getCount()) break;
+				adapterIndex = mLastItemPosition;
+			} else { // We've got a previously seen view to add.
+				adapterIndex = mBottomHiddenViewsPerColumn[shortestColumnIndex].pop(); 
+			}
+			newBottomChild = mAdapter.getView(adapterIndex, getCachedView(), this);
+			// We need to re-measure the child to fit.
+			measureChild(newBottomChild);
+			addAndLayoutChild(newBottomChild, LAYOUT_MODE_BELOW, shortestColumnIndex);
+			mColumns[shortestColumnIndex].addBottom(new ColumnView(adapterIndex, newBottomChild));
+			shortestColumnIndex = findShortestColumnIndex(mColumns);
+			shortestEdge = mColumns[shortestColumnIndex].getBottom();
+		}
+	}
+
+	/**
+	 * Starts at the top and adds children upwards until we've filled the view.
+	 * 
+	 * @param offset
+	 *            Offset of the visible area
+	 */
+	private void fillListUp(final int offset) {
+		Log.d("AntipodalWall", "fillListUp called with offset " + offset);
+		Column currentColumn;
+		int adapterIndex;
+		View newTopChild;
+		for(int currentColumnIndex = 0; currentColumnIndex < mNumberOfColumns; currentColumnIndex++) {
+			currentColumn = mColumns[currentColumnIndex];
+			while (currentColumn.getTop() < offset) {
+				// If we're filling up, we've always already seen these views,
+				// so we can add until the stack is empty or our view is full.
+				if(mTopHiddenViewsPerColumn[currentColumnIndex].isEmpty()) break;
+				adapterIndex = mTopHiddenViewsPerColumn[currentColumnIndex].pop();
+				newTopChild = mAdapter.getView(adapterIndex, getCachedView(), this);
+				measureChild(newTopChild);
+				addAndLayoutChild(newTopChild, LAYOUT_MODE_ABOVE, currentColumnIndex);
+				currentColumn.addTop(new ColumnView(adapterIndex, newTopChild));
+			}
+		}
+	}
+
+	/**
+	 * Adds a view as a child view and takes care of laying it out
+	 * 
+	 * @param child
+	 *            The view to add
+	 * @param layoutMode
+	 *            Either LAYOUT_MODE_ABOVE or LAYOUT_MODE_BELOW
+	 */
+	private void addAndLayoutChild(final View child, final int layoutMode, int columnNumber) {
+		Log.d("AntipodalWall", "addAndLayoutChild called with columnNumber " + columnNumber);
+		int left = this.paddingL + (int) (this.mColumnWidth * columnNumber)
+				+ (this.horizontalSpacing * columnNumber);
+		int childHeight = child.getMeasuredHeight();
+		int childWidth = child.getMeasuredWidth();
+		int topOfChildView;
+		if(layoutMode == LAYOUT_MODE_BELOW){
+			topOfChildView = mColumns[columnNumber].getBottom();
+		} else {
+			topOfChildView = mColumns[columnNumber].getTop() + childHeight;
+		}
+		child.layout(left, topOfChildView + this.paddingT,
+				left + childWidth,
+				topOfChildView + childHeight
+						+ this.paddingT);
+		LayoutParams params = child.getLayoutParams();
+		if (params == null) {
+			params = new LayoutParams(LayoutParams.WRAP_CONTENT,
+					LayoutParams.WRAP_CONTENT);
+		}
+		// -1 means put it at the end, 0 means at the beginning.
+		final int index = layoutMode == LAYOUT_MODE_ABOVE ? 0 : -1;
+		addViewInLayout(child, index, params, true);
+	}
+
+	/**
+	 * Checks if there is a cached view that can be used
+	 * 
+	 * @return A cached view or, if none was found, null
+	 */
+	private View getCachedView() {
+		if (mCachedItemViews.size() != 0) {
+			return mCachedItemViews.removeFirst();
+		}
+		return null;
+	}
+
+	@Override
+	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+		// TODO Needed?
+		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+		Log.d("AntipodalWall",  "onMeasure() called");
+		// if we don't have an adapter, we don't need to do anything
+		if (mAdapter == null) {
+			return;
+		}
+		int parentWidth = MeasureSpec.getSize(widthMeasureSpec);
+		// Usable width for children once padding is removed
+		int parentUsableWidth = parentWidth - this.paddingL - this.paddingR;
+		if (parentUsableWidth < 0)
+			parentUsableWidth = 0;
+
+		this.mParentHeight = MeasureSpec.getSize(heightMeasureSpec);
+		// Usable height for children once padding is removed
+		int parentUsableHeight = this.mParentHeight - this.paddingT
+				- this.paddingB;
+		if (parentUsableHeight < 0)
+			parentUsableHeight = 0;
+		this.mColumnWidth = parentUsableWidth
+				/ this.mNumberOfColumns
+				- ((this.horizontalSpacing * (this.mNumberOfColumns - 1)) / this.mNumberOfColumns);
+		if(mColumns == null) {
+			mColumns = new Column[mNumberOfColumns];
+			for(int i = 0; i < mNumberOfColumns; i++) {
+				mColumns[i] = new Column();
+			}
+		}
+		
+		// force the width of the children to be that of the columns...
+		mChildWidthSpec = MeasureSpec.makeMeasureSpec((int) this.mColumnWidth, MeasureSpec.EXACTLY);
+		// ... but let them grow vertically
+		int lastItemPositionDuringMeasure = mLastItemPosition;
+		int[] columnHeightsDuringMeasure = new int[mNumberOfColumns];
+		for(int i = 0; i < mNumberOfColumns; i++)
+			columnHeightsDuringMeasure[i] = mColumns[i].getBottom();
+		int shortestColumnNumber = findShortestColumnIndex(columnHeightsDuringMeasure);
+		int shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
+		while (shortestColumnBottomEdge <= getHeight()
+				&& lastItemPositionDuringMeasure < mAdapter.getCount() - 1) {
+			lastItemPositionDuringMeasure++;
+			final View newBottomchild = mAdapter.getView(lastItemPositionDuringMeasure,
+					getCachedView(), this);
+			measureChild(newBottomchild);
+			shortestColumnBottomEdge += newBottomchild.getMeasuredHeight();
+			columnHeightsDuringMeasure[shortestColumnNumber] = shortestColumnBottomEdge;
+			shortestColumnNumber = findShortestColumnIndex(columnHeightsDuringMeasure);
+			shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
+		}
+		
+		// get the final heigth of the viewgroup. it will be that of the higher
+		// column once all chidren is in place
+		this.finalHeight = columnHeightsDuringMeasure[findLongestColumnIndex(columnHeightsDuringMeasure)];
+
+		setMeasuredDimension(parentWidth, this.finalHeight);
+	}
+	
+	private void measureChild(View newBottomchild) {
+		int childHeightSpec;
+		int originalWidth = newBottomchild.getMeasuredWidth();
+		int originalHeight = newBottomchild.getMeasuredHeight();
+		/**
+		 * If either the measured height or width of the original is 0 that
+		 * probably just means that whoever supplied our view hasn't
+		 * specified the size of the view themselves. In this case we fall
+		 * back to the default behaviour of specifying the width and
+		 * allowing the height to grow.
+		 * 
+		 * It is advised to call View.measure(widthMeasureSpec,
+		 * heightMeasureSpec); in your adapters getView(...) method with a
+		 * specific width and height spec. Not doing this can result in
+		 * unexpected behaviour - specifically, images were being placed in
+		 * columns with large gaps between them when using
+		 * MeasureSpec.UNSPECIFIED. This was (as of Jan 1, 2013) tested on a
+		 * Nexus One running 2.3.3.
+		 * 
+		 */
+		if(originalWidth == 0 || originalHeight == 0) {
+			childHeightSpec = MeasureSpec.makeMeasureSpec(0,
+					MeasureSpec.UNSPECIFIED);
+		} else {
+			double scaleRatio = originalWidth / mColumnWidth;
+			int newHeight = (int) (originalHeight / scaleRatio);
+			childHeightSpec = MeasureSpec.makeMeasureSpec(newHeight,
+					MeasureSpec.EXACTLY);
+		}
+		newBottomchild.measure(mChildWidthSpec, childHeightSpec);
+	}
+
+	@Override
+	protected void onLayout(boolean changed, int l, int t, int r, int b) {
+		super.onLayout(changed, l, t, r, b);
+		Log.d("AntipodalWall",  "onLayout() called");
+		// if we don't have an adapter, we don't need to do anything
+		if (mAdapter == null) {
+			return;
+		}
+
+		if (getChildCount() == 0) {
+			mLastItemPosition = -1;
+			mScrolledPosition = 0;
+			fillListDown(mScrolledPosition);
+		} else {
+			removeNonVisibleViews(mScrolledPosition);
+			fillList(mScrolledPosition);
+		}
+		invalidate();
+	}
+
+	@Override
+	protected int computeVerticalScrollExtent() {
+		return this.mParentHeight - (this.finalHeight - this.mParentHeight);
+	}
+
+	@Override
+	protected int computeVerticalScrollOffset() {
+		return getScrollY();
+	}
+
+	@Override
+	protected int computeVerticalScrollRange() {
+		return this.finalHeight;
+	}
+
+	@Override
+	public boolean onTouchEvent(MotionEvent event) {
+		if (getChildCount() == 0) {
+			return false;
+		}
+		switch (event.getAction()) {
+		case MotionEvent.ACTION_DOWN:
+			startTouch(event);
+			break;
+
+		case MotionEvent.ACTION_MOVE:
+			if (mTouchState == TOUCH_STATE_CLICK) {
+				startScrollIfNeeded(event);
+			}
+			if (mTouchState == TOUCH_STATE_SCROLL) {
+				int eventY = (int) event.getY();
+				int scrollDistance = - (eventY - mTouchStartY);
+				scrollList(scrollDistance);
+				// Reset the "start" position each time.
+				mTouchStartY = eventY;
+			}
+			break;
+
+		case MotionEvent.ACTION_UP:
+			if (mTouchState == TOUCH_STATE_CLICK) {
+				clickChildAt((int) event.getX(), (int) event.getY());
+			}
+			endTouch();
+			break;
+
+		default:
+			endTouch();
+			break;
+		}
+		return true;
+	}
+	
+	private int findShortestColumnIndex(Column[] columns) {
+		int shortest = columns[0].getBottom();
+		int column = 0;
+		for(int i = 1; i < columns.length; i++) {
+			if(columns[i].getBottom() < shortest) {
+				shortest = columns[i].getBottom();
+				column = i;
+			}
+		}
+		return column;
+	}
+
+	private int findShortestColumnIndex(int[] columns) {
+		int minValue = columns[0];
+		int column = 0;
+		for (int i = 1; i < columns.length; i++) {
+			if (columns[i] < minValue) {
+				minValue = columns[i];
+				column = i;
+			}
+		}
+		return column;
+	}
+
+	private int findLongestColumnIndex(int[] columns) {
+		int maxValue = columns[0];
+		int column = 0;
+		for (int i = 1; i < columns.length; i++) {
+			if (columns[i] > maxValue) {
+				maxValue = columns[i];
+				column = i;
+			}
+		}
+		return column;
+	}
+
+	private void setGeneralPadding(int padding) {
+		this.paddingL = padding;
+		this.paddingT = padding;
+		this.paddingR = padding;
+		this.paddingB = padding;
+	}
+
+	@Override
+	public Adapter getAdapter() {
+		return mAdapter;
+	}
+	
+	@Override
+	public void setAdapter(Adapter adapter) {
+		mAdapter = adapter;
+		removeAllViewsInLayout();
+		requestLayout();
+	}
+	
+	@Override
+	public View getSelectedView() {
+		throw new UnsupportedOperationException("Not supported");
+	}
+	
+	@Override
+	public void setSelection(int position) {
+		throw new UnsupportedOperationException("Not supported");
+	}
+	
 	@Override
 	public boolean onInterceptTouchEvent(final MotionEvent event) {
 		switch (event.getAction()) {
@@ -187,9 +646,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// save the start place
 		mTouchStartX = (int) event.getX();
 		mTouchStartY = (int) event.getY();
-		View topChild = getChildAt(0);
-		if(topChild != null)
-			mListTopStart = getChildAt(0).getTop() - mListTopOffset;
 
 		// start checking for a long press
 		startLongPressCheck();
@@ -209,30 +665,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// reset touch state
 		mTouchState = TOUCH_STATE_RESTING;
 	}
-
-	/**
-	 * Scrolls the list. Handles not scrolling past the top of the list.
-	 * 
-	 * @param scrollDistance
-	 *            The distance to scroll
-	 */
-	private void scrollList(int scrollDistance) {
-		if(mScrolledPosition + scrollDistance < 0) {
-			scrollDistance = -mScrolledPosition;
-		}
-		mScrolledPosition += scrollDistance;
-		mListTop = mListTopStart + scrollDistance;
-		scrollBy(0, scrollDistance);
-		//final int offset = mListTop + mListTopOffset - getChildAt(0).getTop();
-		removeNonVisibleViews(mScrolledPosition);
-		if(scrollDistance > 0) {
-			//final int offset = mListTop + mListTopOffset - getChildAt(0).getTop();
-			fillListDown(mScrolledPosition, 0);
-		} else if (scrollDistance < 0) {
-			fillListUp(mScrolledPosition, 0);
-		}
-	}
-
+	
 	/**
 	 * Posts (and creates if necessary) a runnable that will when executed call
 	 * the long click listener
@@ -337,516 +770,4 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			listener.onItemLongClick(this, itemView, position, id);
 		}
 	}
-
-	/**
-	 * Removes view that are outside of the visible part of the list. Will not
-	 * remove all views.
-	 * 
-	 * @param offset
-	 *            Offset of the visible area
-	 */
-	private void removeNonVisibleViews(final int offset) {
-		// We need to keep close track of the child count in this function. We
-		// should never remove all the views, because if we do, we loose track
-		// of were we are.
-		int childCount = getChildCount();
-
-		// if we are not at the bottom of the list and have more than one child
-		if (mLastItemPosition != mAdapter.getCount() - 1 && childCount > 1) {
-			// check if we should remove any views in the top
-			View firstChild = getChildAt(0);
-			while (firstChild != null && firstChild.getBottom() < offset) {
-				// remove the top view
-				removeViewInLayout(firstChild);
-				childCount--;
-				Log.d("AntipodalWall", "Removing child from top.");
-				mCachedItemViews.addLast(firstChild);
-				mFirstItemPosition++;
-
-				// update the list offset (since we've removed the top child)
-				mListTopOffset += firstChild.getMeasuredHeight();
-
-				// Continue to check the next child only if we have more than
-				// one child left
-				if (childCount > 1) {
-					firstChild = getChildAt(0);
-				} else {
-					firstChild = null;
-				}
-			}
-		}
-
-		// if we are not at the top of the list and have more than one child
-		if (mFirstItemPosition != 0 && childCount > 1) {
-			// check if we should remove any views in the bottom
-			View lastChild = getChildAt(childCount - 1);
-			int childId;
-			int childColumnNumber;
-			while (lastChild != null
-					&& lastChild.getTop() > offset + parentHeight) {
-				Log.d("AntipodalWall", "Removing child from bottom.");
-				childId = lastChild.getId();
-				childColumnNumber = mViewIDToColumnNumberMap.get(childId);
-				mColumnHeights[childColumnNumber] -= lastChild.getHeight();
-				
-				// remove the bottom view
-				removeViewInLayout(lastChild);
-				childCount--;
-				mCachedItemViews.addLast(lastChild);
-				mLastItemPosition--;
-
-				// Continue to check the next child only if we have more than
-				// one child left
-				if (childCount > 1) {
-					lastChild = getChildAt(childCount - 1);
-				} else {
-					lastChild = null;
-				}
-			}
-		}
-	}
-
-	/**
-	 * Fills the list with child-views
-	 * 
-	 * @param offset
-	 *            Offset of the visible area
-	 */
-	private void fillList(final int offset, int left) {
-		Log.d("AntipodalWall", "fillList called");
-		fillListDown(offset, left);
-
-		fillListUp(offset, left);
-	}
-
-	/**
-	 * Starts at the bottom and adds children until we've passed the list bottom
-	 * 
-	 * @param columnHeights
-	 *            The heights of the columns
-	 * @param offset
-	 *            Offset of the visible area
-	 */
-	private void fillListDown(final int offset, int left) {
-		Log.d("AntipodalWall", "fillListDown called");
-		int columnNumber = findLowerColumn(mColumnHeights);
-		int bottomEdge = mColumnHeights[columnNumber];
-		while (bottomEdge - offset <= parentHeight
-				&& mLastItemPosition < mAdapter.getCount() - 1) {
-			
-			mLastItemPosition++;
-			View newBottomchild = mAdapter.getView(mLastItemPosition, getCachedView(), this);
-			measureChild(newBottomchild);
-			int childId = newBottomchild.getId();
-			if(mViewIDToColumnNumberMap.indexOfKey(childId) < 0) {
-				columnNumber = findLowerColumn(mColumnHeights);
-				mViewIDToColumnNumberMap.put(childId, columnNumber);
-			} else {
-				columnNumber = mViewIDToColumnNumberMap.get(childId);
-			}
-			bottomEdge = mColumnHeights[columnNumber];
-			addAndLayoutChild(newBottomchild, LAYOUT_MODE_BELOW, left, columnNumber);
-			bottomEdge += newBottomchild.getMeasuredHeight();
-			mColumnHeights[columnNumber] = bottomEdge;
-			bottomEdge = mColumnHeights[findLowerColumn(mColumnHeights)];
-		}
-		
-//		while (shortestColumnBottomEdge <= getHeight()
-//				&& lastItemPositionDuringMeasure < mAdapter.getCount() - 1) {
-//			lastItemPositionDuringMeasure++;
-//			final View newBottomchild = mAdapter.getView(lastItemPositionDuringMeasure,
-//					getCachedView(), this);
-//			newBottomchild.measure(childWidthSpec, childHeightSpec);
-//			shortestColumnBottomEdge += newBottomchild.getMeasuredHeight();
-//			columnHeightsDuringMeasure[shortestColumnNumber] = shortestColumnBottomEdge;
-//			shortestColumnNumber = findLowerColumn(columnHeightsDuringMeasure);
-//			shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
-//		}
-	}
-
-	/**
-	 * Starts at the top and adds children until we've passed the list top
-	 * 
-	 * @param topEdge
-	 *            The top edge of the currently first child
-	 * @param offset
-	 *            Offset of the visible area
-	 */
-	private void fillListUp(final int offset, int left) {
-		Log.d("AntipodalWall", "fillListUp called");
-		int lowestTopEdge = getLowestTopEdge();
-		while (lowestTopEdge < offset && mFirstItemPosition > 0) {
-			mFirstItemPosition--;
-			View newTopChild = mAdapter.getView(mFirstItemPosition, getCachedView(), this);
-			int columnNumber = mViewIDToColumnNumberMap.get(newTopChild.getId());
-			addAndLayoutChild(newTopChild, LAYOUT_MODE_ABOVE, left, columnNumber);
-			lowestTopEdge = getLowestTopEdge();
-			mListTopOffset -= newTopChild.getMeasuredHeight();
-			
-		}
-//		while (topEdge + offset > 0 && mFirstItemPosition > 0) {
-//			mFirstItemPosition--;
-//			final View newTopCild = mAdapter.getView(mFirstItemPosition,
-//					getCachedView(), this);
-//			// TODO Always adding in col 0
-//			addAndMeasureChild(newTopCild, LAYOUT_MODE_ABOVE, 0, 0);
-//			final int childHeight = newTopCild.getMeasuredHeight();
-//			topEdge -= childHeight;
-//
-//			// update the list offset (since we added a view at the top)
-//			mListTopOffset -= childHeight;
-//		}
-	}
-	
-	/**
-	 * Fetches the "lowest" (as in, lowest visible) top edge of a view.
-	 * This will be the top edge of the view that will first reveal empty
-	 * space. Method checks all columns.
-	 * @return
-	 */
-	private int getLowestTopEdge() {
-		// TODO This is some ugly code. Must be a better way to do this. Track
-		// the top edge as we remove views, probably.
-		// The lowest edge
-		int lowestTopEdge = 0;
-		int childCount = getChildCount();
-		if (childCount == 0)
-			return lowestTopEdge;
-		// Have we checked all columns? Because the first N views may all be in
-		// the same column, etc.
-		boolean allColsChecked = false;
-		// set colsChecked[columnNumber] = 1 when the given column number has
-		// been checked.
-		int[] columnsChecked = new int[columns];
-		// top child we're currently checking
-		View topChild;
-		// For iterating through the current children
-		int index = 0;
-		// top edge of the current child
-		int currentTopEdge;
-		while (!allColsChecked && index < childCount) {
-			topChild = getChildAt(index);
-			index++;
-			columnsChecked[mViewIDToColumnNumberMap.get(topChild.getId())] = 1;
-			currentTopEdge = topChild.getTop();
-			if(lowestTopEdge < currentTopEdge)
-				lowestTopEdge = currentTopEdge;
-			for(int col : columnsChecked) {
-				if(col == 0) {
-					allColsChecked = false;
-					break;
-				} else {
-					allColsChecked = true;
-				}
-			}
-		}
-		return lowestTopEdge;
-	}
-
-	/**
-	 * Adds a view as a child view and takes care of laying it out
-	 * 
-	 * @param child
-	 *            The view to add
-	 * @param layoutMode
-	 *            Either LAYOUT_MODE_ABOVE or LAYOUT_MODE_BELOW
-	 */
-	private void addAndLayoutChild(final View child, final int layoutMode, int l, int columnNumber) {
-		Log.d("AntipodalWall", "addAndLayoutChild called with columnNumber " + columnNumber
-				+ " and left value of " + l);
-		// TODO Add to the top code isn't done
-		// We place each child in the column that has the less height to the
-		// moment
-		int left = this.paddingL + l + (int) (this.columnWidth * columnNumber)
-				+ (this.horizontalSpacing * columnNumber);
-		int childHeight = child.getMeasuredHeight();
-		int childWidth = child.getMeasuredWidth();
-		child.layout(left, mColumnHeights[columnNumber] + this.paddingT,
-				left + childWidth,
-				mColumnHeights[columnNumber] + childHeight
-						+ this.paddingT);
-		mColumnHeights[columnNumber] = mColumnHeights[columnNumber] + childHeight
-				+ this.verticalSpacing;
-		LayoutParams params = child.getLayoutParams();
-		if (params == null) {
-			params = new LayoutParams(LayoutParams.WRAP_CONTENT,
-					LayoutParams.WRAP_CONTENT);
-		}
-		// -1 means put it at the end, 0 means at the beginning.
-		final int index = layoutMode == LAYOUT_MODE_ABOVE ? 0 : -1;
-		addViewInLayout(child, index, params, true);
-		// TODO Is the below necessary?
-//		LayoutParams params = child.getLayoutParams();
-//		if (params == null) {
-//			params = new LayoutParams(LayoutParams.WRAP_CONTENT,
-//					LayoutParams.WRAP_CONTENT);
-//		}
-//		final int index = layoutMode == LAYOUT_MODE_ABOVE ? 0 : -1;
-//		addViewInLayout(child, index, params, true);
-//
-//		final int itemWidth = getWidth();
-//		child.measure(MeasureSpec.EXACTLY | itemWidth, MeasureSpec.UNSPECIFIED);
-	}
-
-	/**
-	 * Positions the children at the "correct" positions
-	 */
-	private void positionItems() {
-		int top = mListTop + mListTopOffset;
-
-		for (int index = 0; index < getChildCount(); index++) {
-			final View child = getChildAt(index);
-
-			final int width = child.getMeasuredWidth();
-			final int height = child.getMeasuredHeight();
-			final int left = (getWidth() - width) / 2;
-
-			child.layout(left, top, left + width, top + height);
-			top += height;
-		}
-
-	}
-
-	/**
-	 * Checks if there is a cached view that can be used
-	 * 
-	 * @return A cached view or, if none was found, null
-	 */
-	private View getCachedView() {
-		if (mCachedItemViews.size() != 0) {
-			return mCachedItemViews.removeFirst();
-		}
-		return null;
-	}
-
-	@Override
-	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		// TODO Needed?
-		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-		Log.d("AntipodalWall",  "onMeasure() called");
-		// if we don't have an adapter, we don't need to do anything
-		if (mAdapter == null) {
-			return;
-		}
-		int parentWidth = MeasureSpec.getSize(widthMeasureSpec);
-		// Usable width for children once padding is removed
-		int parentUsableWidth = parentWidth - this.paddingL - this.paddingR;
-		if (parentUsableWidth < 0)
-			parentUsableWidth = 0;
-
-		this.parentHeight = MeasureSpec.getSize(heightMeasureSpec);
-		// Usable height for children once padding is removed
-		int parentUsableHeight = this.parentHeight - this.paddingT
-				- this.paddingB;
-		if (parentUsableHeight < 0)
-			parentUsableHeight = 0;
-		this.columnWidth = parentUsableWidth
-				/ this.columns
-				- ((this.horizontalSpacing * (this.columns - 1)) / this.columns);
-		
-		// force the width of the children to be that of the columns...
-		mChildWidthSpec = MeasureSpec.makeMeasureSpec((int) this.columnWidth, MeasureSpec.EXACTLY);
-		// ... but let them grow vertically
-		int lastItemPositionDuringMeasure = mLastItemPosition;
-		int[] columnHeightsDuringMeasure = mColumnHeights.clone();
-		int shortestColumnNumber = findLowerColumn(columnHeightsDuringMeasure);
-		int shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
-		while (shortestColumnBottomEdge <= getHeight()
-				&& lastItemPositionDuringMeasure < mAdapter.getCount() - 1) {
-			final View newBottomchild = mAdapter.getView(lastItemPositionDuringMeasure,
-					getCachedView(), this);
-			measureChild(newBottomchild);
-			mViewsAcquiredFromAdapterDuringMeasure.put(lastItemPositionDuringMeasure, newBottomchild);
-			mViewIDToColumnNumberMap.put(newBottomchild.getId(), shortestColumnNumber);
-			
-			shortestColumnBottomEdge += newBottomchild.getMeasuredHeight();
-			columnHeightsDuringMeasure[shortestColumnNumber] = shortestColumnBottomEdge;
-			shortestColumnNumber = findLowerColumn(columnHeightsDuringMeasure);
-			shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
-			lastItemPositionDuringMeasure++;
-		}
-		
-		// get the final heigth of the viewgroup. it will be that of the higher
-		// column once all chidren is in place
-		this.finalHeight = columnHeightsDuringMeasure[findHigherColumn(columnHeightsDuringMeasure)];
-
-		setMeasuredDimension(parentWidth, this.finalHeight);
-	}
-	
-	private void measureChild(View newBottomchild) {
-		int childHeightSpec;
-		int originalWidth = newBottomchild.getMeasuredWidth();
-		int originalHeight = newBottomchild.getMeasuredHeight();
-		/**
-		 * If either the measured height or width of the original is 0 that
-		 * probably just means that whoever supplied our view hasn't
-		 * specified the size of the view themselves. In this case we fall
-		 * back to the default behaviour of specifying the width and
-		 * allowing the height to grow.
-		 * 
-		 * It is advised to call View.measure(widthMeasureSpec,
-		 * heightMeasureSpec); in your adapters getView(...) method with a
-		 * specific width and height spec. Not doing this can result in
-		 * unexpected behaviour - specifically, images were being placed in
-		 * columns with large gaps between them when using
-		 * MeasureSpec.UNSPECIFIED. This was (as of Jan 1, 2013) tested on a
-		 * Nexus One running 2.3.3.
-		 * 
-		 */
-		if(originalWidth == 0 || originalHeight == 0) {
-			childHeightSpec = MeasureSpec.makeMeasureSpec(0,
-					MeasureSpec.UNSPECIFIED);
-		} else {
-			double scaleRatio = originalWidth / columnWidth;
-			int newHeight = (int) (originalHeight / scaleRatio);
-			childHeightSpec = MeasureSpec.makeMeasureSpec(newHeight,
-					MeasureSpec.EXACTLY);
-		}
-		newBottomchild.measure(mChildWidthSpec, childHeightSpec);
-	}
-
-	@Override
-	protected void onLayout(boolean changed, int l, int t, int r, int b) {
-		super.onLayout(changed, l, t, r, b);
-		Log.d("AntipodalWall",  "onLayout() called");
-		// if we don't have an adapter, we don't need to do anything
-		if (mAdapter == null) {
-			return;
-		}
-
-		if (getChildCount() == 0) {
-			mLastItemPosition = -1;
-			fillListDown(0, 0);
-		} else {
-			removeNonVisibleViews(mScrolledPosition);
-			fillList(mScrolledPosition, l);
-		}
-		invalidate();
-	}
-
-	@Override
-	protected int computeVerticalScrollExtent() {
-		return this.parentHeight - (this.finalHeight - this.parentHeight);
-	}
-
-	@Override
-	protected int computeVerticalScrollOffset() {
-		return getScrollY();
-	}
-
-	@Override
-	protected int computeVerticalScrollRange() {
-		return this.finalHeight;
-	}
-
-	@Override
-	public boolean onTouchEvent(MotionEvent event) {
-		if (getChildCount() == 0) {
-			return false;
-		}
-		switch (event.getAction()) {
-		case MotionEvent.ACTION_DOWN:
-			startTouch(event);
-			break;
-
-		case MotionEvent.ACTION_MOVE:
-			if (mTouchState == TOUCH_STATE_CLICK) {
-				startScrollIfNeeded(event);
-			}
-			if (mTouchState == TOUCH_STATE_SCROLL) {
-				int eventY = (int) event.getY();
-				int scrollDistance = - (eventY - mTouchStartY);
-				scrollList(scrollDistance);
-				// Reset the "start" position each time.
-				mTouchStartY = eventY;
-			}
-			break;
-
-		case MotionEvent.ACTION_UP:
-			if (mTouchState == TOUCH_STATE_CLICK) {
-				clickChildAt((int) event.getX(), (int) event.getY());
-			}
-			endTouch();
-			break;
-
-		default:
-			endTouch();
-			break;
-		}
-		return true;
-//		awakenScrollBars();
-//		int eventaction = event.getAction();
-//		switch (eventaction) {
-//		case MotionEvent.ACTION_MOVE:
-//			// handle vertical scrolling
-//			if (isVerticalScrollBarEnabled()) {
-//				if (event.getHistorySize() > 0) {
-//					this.y_move = -(int) (event.getY() - event
-//							.getHistoricalY(event.getHistorySize() - 1));
-//					int result_scroll = getScrollY() + this.y_move;
-//					if (result_scroll >= 0
-//							&& result_scroll <= this.finalHeight
-//									- this.parentHeight)
-//						scrollBy(0, this.y_move);
-//				}
-//			}
-//			break;
-//		}
-//		invalidate();
-//		return true;
-	}
-
-	private int findLowerColumn(int[] columns) {
-		int minValue = columns[0];
-		int column = 0;
-		for (int i = 1; i < columns.length; i++) {
-			if (columns[i] < minValue) {
-				minValue = columns[i];
-				column = i;
-			}
-		}
-		return column;
-	}
-
-	private int findHigherColumn(int[] columns) {
-		int maxValue = columns[0];
-		int column = 0;
-		for (int i = 1; i < columns.length; i++) {
-			if (columns[i] > maxValue) {
-				maxValue = columns[i];
-				column = i;
-			}
-		}
-		return column;
-	}
-
-	private void setGeneralPadding(int padding) {
-		this.paddingL = padding;
-		this.paddingT = padding;
-		this.paddingR = padding;
-		this.paddingB = padding;
-	}
-
-	@Override
-	public Adapter getAdapter() {
-		return mAdapter;
-	}
-
-	@Override
-	public View getSelectedView() {
-		throw new UnsupportedOperationException("Not supported");
-	}
-
-	@Override
-	public void setAdapter(Adapter adapter) {
-		mAdapter = adapter;
-		removeAllViewsInLayout();
-		requestLayout();
-	}
-
-	@Override
-	public void setSelection(int position) {
-		throw new UnsupportedOperationException("Not supported");
-	}
-
 }
