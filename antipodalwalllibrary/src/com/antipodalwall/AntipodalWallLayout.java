@@ -209,16 +209,15 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			mBottomHiddenViewsPerColumn[i] = new Stack<Integer>();
 		}
 		
-		// - general padding (padding was not being handled correctly)
-		setGeneralPadding(a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_padding, 0));
+		int defaultPadding = a.getDimensionPixelSize(
+				R.styleable.AntipodalWallAttrs_android_padding, 0); 
 		// - specific paddings
 		this.paddingL = a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_paddingLeft, 0);
+				R.styleable.AntipodalWallAttrs_android_paddingLeft, defaultPadding);
 		this.paddingT = a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_paddingTop, 0);
+				R.styleable.AntipodalWallAttrs_android_paddingTop, defaultPadding);
 		this.paddingR = a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_paddingRight, 0);
+				R.styleable.AntipodalWallAttrs_android_paddingRight, defaultPadding);
 		this.paddingB = a.getDimensionPixelSize(
 				R.styleable.AntipodalWallAttrs_android_paddingBottom, 0);
 		// - spacing
@@ -304,7 +303,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			if(mBottomHiddenViewsPerColumn[shortestColumnIndex].isEmpty()) {
 				mLastItemPosition++;
 				// The adapter has run out of views - stop adding views.
-				if(mLastItemPosition == mAdapter.getCount()) break;
+				if(mLastItemPosition >= mAdapter.getCount()) break;
 				adapterIndex = mLastItemPosition;
 			} else { // We've got a previously seen view to add.
 				adapterIndex = mBottomHiddenViewsPerColumn[shortestColumnIndex].pop(); 
@@ -355,8 +354,10 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private void addAndLayoutChild(final View child, final int layoutMode, int columnNumber) {
 		Log.d("AntipodalWall", "addAndLayoutChild called with columnNumber " + columnNumber);
-		int left = this.paddingL + (int) (this.mColumnWidth * columnNumber)
-				+ (this.horizontalSpacing * columnNumber);
+		// TODO Padding, Spacing
+//		int left = this.paddingL + (int) (this.mColumnWidth * columnNumber)
+//				+ (this.horizontalSpacing * columnNumber);
+		int left = (int) (this.mColumnWidth * columnNumber);
 		int childHeight = child.getMeasuredHeight();
 		int childWidth = child.getMeasuredWidth();
 		int topOfChildView;
@@ -365,10 +366,15 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		} else {
 			topOfChildView = mColumns[columnNumber].getTop() + childHeight;
 		}
-		child.layout(left, topOfChildView + this.paddingT,
+		// TODO Padding
+//		child.layout(left, 
+//				topOfChildView + this.paddingT,
+//				left + childWidth,
+//				topOfChildView + childHeight + this.paddingT);
+		child.layout(left, 
+				topOfChildView,
 				left + childWidth,
-				topOfChildView + childHeight
-						+ this.paddingT);
+				topOfChildView + childHeight);
 		LayoutParams params = child.getLayoutParams();
 		if (params == null) {
 			params = new LayoutParams(LayoutParams.WRAP_CONTENT,
@@ -377,6 +383,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// -1 means put it at the end, 0 means at the beginning.
 		final int index = layoutMode == LAYOUT_MODE_ABOVE ? 0 : -1;
 		addViewInLayout(child, index, params, true);
+		Log.d("AntipodalWall", "View child added - total of " + getChildCount() + " children.");
 	}
 
 	/**
@@ -385,6 +392,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 * @return A cached view or, if none was found, null
 	 */
 	private View getCachedView() {
+		Log.d("AntipodalWall", "Returning a cached view from pool of size: " + mCachedItemViews.size());
 		if (mCachedItemViews.size() != 0) {
 			return mCachedItemViews.removeFirst();
 		}
@@ -394,27 +402,34 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 		// TODO Needed?
-		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+		//super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 		Log.d("AntipodalWall",  "onMeasure() called");
 		// if we don't have an adapter, we don't need to do anything
 		if (mAdapter == null) {
+			super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 			return;
 		}
 		int parentWidth = MeasureSpec.getSize(widthMeasureSpec);
+		// TODO Padding
 		// Usable width for children once padding is removed
-		int parentUsableWidth = parentWidth - this.paddingL - this.paddingR;
+		//int parentUsableWidth = parentWidth - this.paddingL - this.paddingR;
+		int parentUsableWidth = parentWidth;
 		if (parentUsableWidth < 0)
 			parentUsableWidth = 0;
 
 		this.mParentHeight = MeasureSpec.getSize(heightMeasureSpec);
+		// TODO Padding
 		// Usable height for children once padding is removed
-		int parentUsableHeight = this.mParentHeight - this.paddingT
-				- this.paddingB;
+//		int parentUsableHeight = this.mParentHeight - this.paddingT
+//				- this.paddingB;
+		int parentUsableHeight = this.mParentHeight;
 		if (parentUsableHeight < 0)
 			parentUsableHeight = 0;
-		this.mColumnWidth = parentUsableWidth
-				/ this.mNumberOfColumns
-				- ((this.horizontalSpacing * (this.mNumberOfColumns - 1)) / this.mNumberOfColumns);
+		// TODO Spacing
+//		this.mColumnWidth = parentUsableWidth
+//				/ this.mNumberOfColumns
+//				- ((this.horizontalSpacing * (this.mNumberOfColumns - 1)) / this.mNumberOfColumns);
+		this.mColumnWidth = parentUsableWidth / this.mNumberOfColumns;
 		if(mColumns == null) {
 			mColumns = new Column[mNumberOfColumns];
 			for(int i = 0; i < mNumberOfColumns; i++) {
@@ -588,13 +603,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			}
 		}
 		return column;
-	}
-
-	private void setGeneralPadding(int padding) {
-		this.paddingL = padding;
-		this.paddingT = padding;
-		this.paddingR = padding;
-		this.paddingB = padding;
 	}
 
 	@Override
