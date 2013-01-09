@@ -15,16 +15,47 @@ import android.widget.Adapter;
 import android.widget.AdapterView;
 
 public class AntipodalWallLayout extends AdapterView<Adapter> {
-	
+
+	/***
+	 * Container for a View that exists inside a Column. Contains a View as well
+	 * as an index back into the adapter the view came from.
+	 * 
+	 * @author Adam Speakman
+	 * 
+	 */
 	private class ColumnView {
+		/***
+		 * The index of {@link #view} in the Adapter attached to this AdapterView.
+		 */
 		public final int indexIntoAdapter;
+		
+		/***
+		 * The View to display.
+		 */
 		public final View view;
+		
+		/***
+		 * 
+		 * @param index
+		 *            The index into the Adapter.
+		 * @param view
+		 *            The View to display.
+		 */
 		public ColumnView(int index, View view) {
 			this.indexIntoAdapter = index;
 			this.view = view;
 		}
 	}
-	
+
+	/***
+	 * A Column of Views for displaying on the screen. Has methods for adding to
+	 * the top and bottom, and retains the current top/bottom position of the
+	 * views (assuming top of the first view added is in position 0) for
+	 * convenience.
+	 * 
+	 * @author adam
+	 * 
+	 */
 	private class Column {
 		int top, bottom;
 		LinkedList<ColumnView> viewsShown;
@@ -33,18 +64,41 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			viewsShown = new LinkedList<ColumnView>();
 		}
 		
-		public LinkedList<ColumnView> getViews() {
-			return viewsShown;
-		}
-		
+		/***
+		 * Returns the current 'top' of the views that exist in this column.
+		 * This is the number of pixels between the top of the first view that
+		 * was added to this column (whether it is still present in this column
+		 * or not) and the top of the first view still in this column. If the
+		 * top view has never been popped off, this will be 0. If the top view
+		 * has been popped off, this will be the top of the second view that was
+		 * added to this column, etc.
+		 * 
+		 * @return The top of the current top view in this column.
+		 */
 		public int getTop() {
 			return top;
 		}
 		
+		/***
+		 * Returns the current 'bottom' of the views that exist in this column.
+		 * This is the number of pixels between the top of the first view that
+		 * was added to this column (whether it is still present in this column
+		 * or not) and the bottom of the last view that was added to this
+		 * column.
+		 * 
+		 * @return The bottom of the column.
+		 */
 		public int getBottom() { 
 			return bottom;
 		}
 		
+		/***
+		 * Returns the top view of this column and removes it from the
+		 * column, updating the value of {@link #getTop()}.
+		 * 
+		 * @return The top view of the column, or null if there are no views
+		 *         in this column.
+		 */
 		public ColumnView popTopView() {
 			if(viewsShown.isEmpty()) {
 				return null;
@@ -55,6 +109,12 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			}
 		}
 		
+		/***
+		 * Returns the top view of this column without removing it.
+		 * 
+		 * @return The top view of the column, or null if there are no views
+		 *         in this column.
+		 */
 		public ColumnView peekTopView() {
 			if(viewsShown.isEmpty()) {
 				return null;
@@ -63,6 +123,13 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			}
 		}
 		
+		/***
+		 * Returns the bottom view of this column and removes it from the
+		 * column, updating the value of {@link #getBottom()}.
+		 * 
+		 * @return The bottom view of the column, or null if there are no views
+		 *         in this column.
+		 */
 		public ColumnView popBottomView() {
 			if(viewsShown.isEmpty()) {
 				return null;
@@ -72,7 +139,13 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 				return colView;
 			}
 		}
-		
+
+		/***
+		 * Returns the bottom view of this column without removing it.
+		 * 
+		 * @return The bottom view of the column, or null if there are no views
+		 *         in this column.
+		 */
 		public ColumnView peekBottomView() {
 			if(viewsShown.isEmpty()) {
 				return null;
@@ -81,14 +154,24 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			}
 		}
 		
+		/***
+		 * Adds a new ColumnView to the top of this column, updating the value of {@link #getTop()}.
+		 * 
+		 * @param v
+		 *            The ColumnView to add to the top of the column.
+		 */
 		public void addTop(ColumnView v) {
-			// TODO Position view
 			top -= v.view.getHeight();
 			viewsShown.addFirst(v);
 		}
 		
+		/***
+		 * Adds a new ColumnView to the bottom of this column, updating the value of {@link #getBottom()}.
+		 * 
+		 * @param v
+		 *            The ColumnView to add to the bottom of the column.
+		 */
 		public void addBottom(ColumnView v) {
-			// TODO Position view
 			bottom += v.view.getHeight();
 			viewsShown.addLast(v);
 		}
@@ -127,10 +210,11 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	/** Y-coordinate of the down event */
 	private int mTouchStartY;
 
-	/** The adaptor position of the first visible item */
-	private int mFirstItemPosition;
-
-	/** The adaptor position of the last visible item */
+	/**
+	 * The adaptor position of the last visible item (that is, the last item
+	 * we've ever loaded from the adapter - it may not be currently drawn on the
+	 * screen)
+	 */
 	private int mLastItemPosition;
 
 	/** A list of cached (re-usable) item views */
@@ -148,9 +232,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private int mScrolledPosition = 0;
 	
-	/**
-	 * The width spec of child items.
-	 */
+	/** The default width spec of child items, for fitting into columns */
 	private int mChildWidthSpec;
 	
 	/** Number of columns */
@@ -159,18 +241,32 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	/** Width of each column */
 	private float mColumnWidth = 0;
 	
-	private int paddingL;
-	private int paddingT;
-	private int paddingR;
-	private int paddingB;
-	/**
-	 * The height of the view on screen in pixels.
-	 */
-	int mParentHeight = 0;
-	private int finalHeight = 0;
+	/** Left padding for views in this layout */
+	private int mPaddingL;
 	
-	private int horizontalSpacing;
-	private int verticalSpacing;
+	/** Top padding for views in this layout */
+	private int mPaddingT;
+	
+	/** Right padding for views in this layout */
+	private int mPaddingR;
+	
+	/** Bottom padding for views in this layout */
+	private int mPaddingB;
+	
+	/** The height of the view on screen in pixels */
+	int mParentHeight = 0;
+	
+	/**
+	 * The height of the view including all children (including those
+	 * off-screen)
+	 */
+	private int mFinalHeight = 0;
+	
+	/** Horizontal spacing between views in this layout */
+	private int mHorizontalSpacing;
+	
+	/** Vertical spacing between views in this layout */
+	private int mVerticalSpacing;
 	
 	/**
 	 * Indexes into the adapter for the views above the currently drawn parts of
@@ -187,6 +283,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private Column[] mColumns;
 
+	@SuppressWarnings("unchecked")
 	public AntipodalWallLayout(Context context, AttributeSet attrs) {
 		super(context, attrs);
 
@@ -195,9 +292,8 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// Load the attrs from the XML
 		final TypedArray a = context.obtainStyledAttributes(attrs,
 				R.styleable.AntipodalWallAttrs);
-		// - scrollbars
 		initializeScrollbars(a);
-		// - number of columns
+		
 		this.mNumberOfColumns = a.getInt(
 				R.styleable.AntipodalWallAttrs_android_columnCount, 1);
 		if (this.mNumberOfColumns < 1)
@@ -209,36 +305,43 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			mBottomHiddenViewsPerColumn[i] = new Stack<Integer>();
 		}
 		
+		// Use this as default if L/T/R/B not specified
 		int defaultPadding = a.getDimensionPixelSize(
 				R.styleable.AntipodalWallAttrs_android_padding, 0); 
-		// - specific paddings
-		this.paddingL = a.getDimensionPixelSize(
+		// Specific paddings
+		this.mPaddingL = a.getDimensionPixelSize(
 				R.styleable.AntipodalWallAttrs_android_paddingLeft, defaultPadding);
-		this.paddingT = a.getDimensionPixelSize(
+		this.mPaddingT = a.getDimensionPixelSize(
 				R.styleable.AntipodalWallAttrs_android_paddingTop, defaultPadding);
-		this.paddingR = a.getDimensionPixelSize(
+		this.mPaddingR = a.getDimensionPixelSize(
 				R.styleable.AntipodalWallAttrs_android_paddingRight, defaultPadding);
-		this.paddingB = a.getDimensionPixelSize(
-				R.styleable.AntipodalWallAttrs_android_paddingBottom, 0);
-		// - spacing
-		this.horizontalSpacing = a.getDimensionPixelSize(
+		this.mPaddingB = a.getDimensionPixelSize(
+				R.styleable.AntipodalWallAttrs_android_paddingBottom, defaultPadding);
+		// Spacing
+		this.mHorizontalSpacing = a.getDimensionPixelSize(
 				R.styleable.AntipodalWallAttrs_android_horizontalSpacing, 0);
-		this.verticalSpacing = a.getDimensionPixelSize(
+		this.mVerticalSpacing = a.getDimensionPixelSize(
 				R.styleable.AntipodalWallAttrs_android_verticalSpacing, 0);
 
 		a.recycle();
 	}
 
 	/**
-	 * Scrolls the list. Handles not scrolling past the top of the list.
+	 * Scrolls the list. Handles not scrolling past the top and bottom of the
+	 * list.
 	 * 
 	 * @param scrollDistance
-	 *            The distance to scroll
+	 *            The distance to scroll - negative for scrolling up.
 	 */
 	private void scrollList(int scrollDistance) {
+		// Don't want to scroll upwards past 0 position.
 		if(mScrolledPosition + scrollDistance < 0) {
 			scrollDistance = -mScrolledPosition;
 		}
+		// TODO Don't scroll past bottom.
+//		} else if (mScrolledPosition + scrollDistance + mParentHeight > mFinalHeight) {
+//			scrollDistance = mFinalHeight - mScrolledPosition - mParentHeight;
+//		}
 		mScrolledPosition += scrollDistance;
 		scrollBy(0, scrollDistance);
 		removeNonVisibleViews(mScrolledPosition);
@@ -250,16 +353,12 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	}
 
 	/**
-	 * Removes view that are outside of the visible part of the list. Will not
-	 * remove all views.
+	 * Removes view that are outside of the visible part of the list.
 	 * 
 	 * @param offset
 	 *            Offset of the visible area
 	 */
 	private void removeNonVisibleViews(final int offset) {
-		// We need to keep close track of the child count in this function. We
-		// should never remove all the views, because if we do, we loose track
-		// of were we are.
 		ColumnView poppedView;
 		for(int i = 0; i < mNumberOfColumns; i++) {
 			// Remove hidden views from top of columns
@@ -280,6 +379,13 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		}
 	}
 	
+	/***
+	 * Fills the list up and down from a given offset.
+	 * 
+	 * @param offset
+	 *            The number of pixels to the top of where the list is scrolled
+	 *            to.
+	 */
 	private void fillList(final int offset) {
 		fillListUp(offset);
 		fillListDown(offset);
@@ -293,7 +399,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 *            Offset of the visible area
 	 */
 	private void fillListDown(final int offset) {
-		Log.d("AntipodalWall", "fillListDown called with offset " + offset);
 		int shortestColumnIndex = findShortestColumnIndex(mColumns);
 		int shortestEdge = mColumns[shortestColumnIndex].getBottom();
 		View newBottomChild;
@@ -308,6 +413,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			} else { // We've got a previously seen view to add.
 				adapterIndex = mBottomHiddenViewsPerColumn[shortestColumnIndex].pop(); 
 			}
+			// Get the view (new or previously seen) from the adapter.
 			newBottomChild = mAdapter.getView(adapterIndex, getCachedView(), this);
 			// We need to re-measure the child to fit.
 			measureChild(newBottomChild);
@@ -353,7 +459,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 *            Either LAYOUT_MODE_ABOVE or LAYOUT_MODE_BELOW
 	 */
 	private void addAndLayoutChild(final View child, final int layoutMode, int columnNumber) {
-		Log.d("AntipodalWall", "addAndLayoutChild called with columnNumber " + columnNumber);
 		// TODO Padding, Spacing
 //		int left = this.paddingL + (int) (this.mColumnWidth * columnNumber)
 //				+ (this.horizontalSpacing * columnNumber);
@@ -375,6 +480,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 				topOfChildView,
 				left + childWidth,
 				topOfChildView + childHeight);
+		//child.setPadding(mPaddingL, mPaddingT, mPaddingR, mPaddingB);
 		LayoutParams params = child.getLayoutParams();
 		if (params == null) {
 			params = new LayoutParams(LayoutParams.WRAP_CONTENT,
@@ -392,7 +498,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 * @return A cached view or, if none was found, null
 	 */
 	private View getCachedView() {
-		Log.d("AntipodalWall", "Returning a cached view from pool of size: " + mCachedItemViews.size());
 		if (mCachedItemViews.size() != 0) {
 			return mCachedItemViews.removeFirst();
 		}
@@ -403,8 +508,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 		// TODO Needed?
 		//super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-		Log.d("AntipodalWall",  "onMeasure() called");
-		// if we don't have an adapter, we don't need to do anything
+		// If we don't have an adapter, we don't need to do anything
 		if (mAdapter == null) {
 			super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 			return;
@@ -460,30 +564,35 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		
 		// get the final heigth of the viewgroup. it will be that of the higher
 		// column once all chidren is in place
-		this.finalHeight = columnHeightsDuringMeasure[findLongestColumnIndex(columnHeightsDuringMeasure)];
+		this.mFinalHeight = columnHeightsDuringMeasure[findLongestColumnIndex(columnHeightsDuringMeasure)];
 
-		setMeasuredDimension(parentWidth, this.finalHeight);
+		setMeasuredDimension(parentWidth, this.mFinalHeight);
 	}
 	
-	private void measureChild(View newBottomchild) {
+	/***
+	 * Measures a View we plan on adding to this layout.
+	 * 
+	 * @param newChild
+	 *            The view to measure.
+	 */
+	private void measureChild(View newChild) {
 		int childHeightSpec;
-		int originalWidth = newBottomchild.getMeasuredWidth();
-		int originalHeight = newBottomchild.getMeasuredHeight();
+		int originalWidth = newChild.getMeasuredWidth();
+		int originalHeight = newChild.getMeasuredHeight();
 		/**
 		 * If either the measured height or width of the original is 0 that
-		 * probably just means that whoever supplied our view hasn't
-		 * specified the size of the view themselves. In this case we fall
-		 * back to the default behaviour of specifying the width and
-		 * allowing the height to grow.
+		 * probably just means that whoever supplied our view hasn't specified
+		 * the size of the view themselves. In this case we fall back to the
+		 * default behaviour of specifying the width and allowing the height to
+		 * grow.
 		 * 
 		 * It is advised to call View.measure(widthMeasureSpec,
 		 * heightMeasureSpec); in your adapters getView(...) method with a
-		 * specific width and height spec. Not doing this can result in
-		 * unexpected behaviour - specifically, images were being placed in
-		 * columns with large gaps between them when using
-		 * MeasureSpec.UNSPECIFIED. This was (as of Jan 1, 2013) tested on a
-		 * Nexus One running 2.3.3.
-		 * 
+		 * specific width and height spec - so long as the "ratio" is correct.
+		 * Not doing this can result in unexpected behaviour - specifically,
+		 * images were being placed in columns with large gaps between them when
+		 * using MeasureSpec.UNSPECIFIED. This was (as of Jan 1, 2013) tested on
+		 * a Nexus One running 2.3.3.
 		 */
 		if(originalWidth == 0 || originalHeight == 0) {
 			childHeightSpec = MeasureSpec.makeMeasureSpec(0,
@@ -494,7 +603,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			childHeightSpec = MeasureSpec.makeMeasureSpec(newHeight,
 					MeasureSpec.EXACTLY);
 		}
-		newBottomchild.measure(mChildWidthSpec, childHeightSpec);
+		newChild.measure(mChildWidthSpec, childHeightSpec);
 	}
 
 	@Override
@@ -519,7 +628,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 
 	@Override
 	protected int computeVerticalScrollExtent() {
-		return this.mParentHeight - (this.finalHeight - this.mParentHeight);
+		return this.mParentHeight - (this.mFinalHeight - this.mParentHeight);
 	}
 
 	@Override
@@ -529,7 +638,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 
 	@Override
 	protected int computeVerticalScrollRange() {
-		return this.finalHeight;
+		return this.mFinalHeight;
 	}
 
 	@Override
@@ -570,6 +679,15 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		return true;
 	}
 	
+	/**
+	 * Returns the index into the supplied array of the column which is the
+	 * "shortest", that is, the column such that Column.getBottom() is less than
+	 * each of the other columns in the array.
+	 * 
+	 * @param columns
+	 *            An array of Columns you want the shortest one of
+	 * @return The index of the shortest Column
+	 */
 	private int findShortestColumnIndex(Column[] columns) {
 		int shortest = columns[0].getBottom();
 		int column = 0;
@@ -582,6 +700,14 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		return column;
 	}
 
+	/**
+	 * Returns the index into the supplied array of the lowest element, that is,
+	 * the element that is less than each of the other elements in the array.
+	 * 
+	 * @param columns
+	 *            An array of numbers you want the lowest one of
+	 * @return The index of the lowest integer
+	 */
 	private int findShortestColumnIndex(int[] columns) {
 		int minValue = columns[0];
 		int column = 0;
@@ -594,6 +720,14 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		return column;
 	}
 
+	/**
+	 * Returns the index into the supplied array of the highest element, that is,
+	 * the element that is greater than each of the other elements in the array.
+	 * 
+	 * @param columns
+	 *            An array of numbers you want the greatest one of
+	 * @return The index of the greatest integer
+	 */
 	private int findLongestColumnIndex(int[] columns) {
 		int maxValue = columns[0];
 		int column = 0;
@@ -758,9 +892,8 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		final int index = getContainingChildIndex(x, y);
 		if (index != INVALID_INDEX) {
 			final View itemView = getChildAt(index);
-			final int position = mFirstItemPosition + index;
-			final long id = mAdapter.getItemId(position);
-			performItemClick(itemView, position, id);
+			final long id = mAdapter.getItemId(index);
+			performItemClick(itemView, index, id);
 		}
 	}
 
@@ -772,11 +905,10 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private void longClickChild(final int index) {
 		final View itemView = getChildAt(index);
-		final int position = mFirstItemPosition + index;
-		final long id = mAdapter.getItemId(position);
+		final long id = mAdapter.getItemId(index);
 		final OnItemLongClickListener listener = getOnItemLongClickListener();
 		if (listener != null) {
-			listener.onItemLongClick(this, itemView, position, id);
+			listener.onItemLongClick(this, itemView, index, id);
 		}
 	}
 }
