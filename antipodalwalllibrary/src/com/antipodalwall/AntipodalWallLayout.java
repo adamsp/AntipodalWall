@@ -469,9 +469,8 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 *            Either LAYOUT_MODE_ABOVE or LAYOUT_MODE_BELOW
 	 */
 	private void addAndLayoutChild(final View child, final int layoutMode, int columnNumber) {
-		// TODO Spacing
-		int left = this.mPaddingL + (int) (this.mColumnWidth * columnNumber);
-				//+ (this.horizontalSpacing * columnNumber);
+		int left = this.mPaddingL + (int) (this.mColumnWidth * columnNumber)
+				+ (this.mHorizontalSpacing * columnNumber);
 		int childHeight = child.getMeasuredHeight();
 		int childWidth = child.getMeasuredWidth();
 		int topOfChildView;
@@ -528,10 +527,9 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 				- this.mPaddingB;
 		if (parentUsableHeight < 0)
 			parentUsableHeight = 0;
-		// TODO Spacing
-//		this.mColumnWidth = parentUsableWidth
-//				/ this.mNumberOfColumns
-//				- ((this.horizontalSpacing * (this.mNumberOfColumns - 1)) / this.mNumberOfColumns);
+		this.mColumnWidth = parentUsableWidth
+				/ this.mNumberOfColumns
+				- ((this.mHorizontalSpacing * (this.mNumberOfColumns - 1)) / this.mNumberOfColumns);
 		this.mColumnWidth = parentUsableWidth / this.mNumberOfColumns;
 		if(mColumns == null) {
 			mColumns = new Column[mNumberOfColumns];
