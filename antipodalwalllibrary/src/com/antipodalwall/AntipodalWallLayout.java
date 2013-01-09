@@ -337,11 +337,21 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// Don't want to scroll upwards past 0 position.
 		if(mScrolledPosition + scrollDistance < 0) {
 			scrollDistance = -mScrolledPosition;
+		} else if (mScrolledPosition + scrollDistance + mParentHeight > mFinalHeight) {
+			// We should only stop scrolling if we've run out of views from the adapter.
+			if(mLastItemPosition >= mAdapter.getCount() - 1) {
+				// If our last position is the end of the adapter, then we've seen all views from the adapter.
+				boolean stopScrolling = true;
+				for(Stack<Integer> hiddenViews : mBottomHiddenViewsPerColumn){
+					// If we still have hidden views, we're not at the bottom of the list. Keep scrolling.
+					if(!hiddenViews.isEmpty()) {
+						stopScrolling = false;
+						break;
+					}
+				}
+				if(stopScrolling) return;
+			}
 		}
-		// TODO Don't scroll past bottom.
-//		} else if (mScrolledPosition + scrollDistance + mParentHeight > mFinalHeight) {
-//			scrollDistance = mFinalHeight - mScrolledPosition - mParentHeight;
-//		}
 		mScrolledPosition += scrollDistance;
 		scrollBy(0, scrollDistance);
 		removeNonVisibleViews(mScrolledPosition);
@@ -406,9 +416,9 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		while (shortestEdge - offset <= mParentHeight) {
 			// We've reached the bottom of our previously seen views, need a new one.
 			if(mBottomHiddenViewsPerColumn[shortestColumnIndex].isEmpty()) {
-				mLastItemPosition++;
 				// The adapter has run out of views - stop adding views.
-				if(mLastItemPosition >= mAdapter.getCount()) break;
+				if(mLastItemPosition >= mAdapter.getCount() - 1) break;
+				mLastItemPosition++;
 				adapterIndex = mLastItemPosition;
 			} else { // We've got a previously seen view to add.
 				adapterIndex = mBottomHiddenViewsPerColumn[shortestColumnIndex].pop(); 
