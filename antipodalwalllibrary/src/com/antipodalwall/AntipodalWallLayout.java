@@ -469,10 +469,9 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 *            Either LAYOUT_MODE_ABOVE or LAYOUT_MODE_BELOW
 	 */
 	private void addAndLayoutChild(final View child, final int layoutMode, int columnNumber) {
-		// TODO Padding, Spacing
-//		int left = this.paddingL + (int) (this.mColumnWidth * columnNumber)
-//				+ (this.horizontalSpacing * columnNumber);
-		int left = (int) (this.mColumnWidth * columnNumber);
+		// TODO Spacing
+		int left = this.mPaddingL + (int) (this.mColumnWidth * columnNumber);
+				//+ (this.horizontalSpacing * columnNumber);
 		int childHeight = child.getMeasuredHeight();
 		int childWidth = child.getMeasuredWidth();
 		int topOfChildView;
@@ -481,16 +480,10 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		} else {
 			topOfChildView = mColumns[columnNumber].getTop() - childHeight;
 		}
-		// TODO Padding
-//		child.layout(left, 
-//				topOfChildView + this.paddingT,
-//				left + childWidth,
-//				topOfChildView + childHeight + this.paddingT);
 		child.layout(left, 
-				topOfChildView,
+				topOfChildView + this.mPaddingT,
 				left + childWidth,
-				topOfChildView + childHeight);
-		//child.setPadding(mPaddingL, mPaddingT, mPaddingR, mPaddingB);
+				topOfChildView + childHeight + this.mPaddingT);
 		LayoutParams params = child.getLayoutParams();
 		if (params == null) {
 			params = new LayoutParams(LayoutParams.WRAP_CONTENT,
@@ -524,19 +517,15 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			return;
 		}
 		int parentWidth = MeasureSpec.getSize(widthMeasureSpec);
-		// TODO Padding
 		// Usable width for children once padding is removed
-		//int parentUsableWidth = parentWidth - this.paddingL - this.paddingR;
-		int parentUsableWidth = parentWidth;
+		int parentUsableWidth = parentWidth - this.mPaddingL - this.mPaddingR;
 		if (parentUsableWidth < 0)
 			parentUsableWidth = 0;
 
 		this.mParentHeight = MeasureSpec.getSize(heightMeasureSpec);
-		// TODO Padding
 		// Usable height for children once padding is removed
-//		int parentUsableHeight = this.mParentHeight - this.paddingT
-//				- this.paddingB;
-		int parentUsableHeight = this.mParentHeight;
+		int parentUsableHeight = this.mParentHeight - this.mPaddingT
+				- this.mPaddingB;
 		if (parentUsableHeight < 0)
 			parentUsableHeight = 0;
 		// TODO Spacing
@@ -573,8 +562,9 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		}
 		
 		// get the final heigth of the viewgroup. it will be that of the higher
-		// column once all chidren is in place
-		this.mFinalHeight = columnHeightsDuringMeasure[findLongestColumnIndex(columnHeightsDuringMeasure)];
+		// column once all chidren is in place, plus the top & bottom padding
+		this.mFinalHeight = columnHeightsDuringMeasure[findLongestColumnIndex(columnHeightsDuringMeasure)] 
+		                                               + mPaddingB + mPaddingT;
 
 		setMeasuredDimension(parentWidth, this.mFinalHeight);
 	}
