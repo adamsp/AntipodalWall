@@ -50,7 +50,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 				return null;
 			} else {
 				ColumnView colView = viewsShown.removeFirst();
-				top -= colView.view.getHeight();
+				top += colView.view.getHeight();
 				return colView;
 			}
 		}
@@ -83,7 +83,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		
 		public void addTop(ColumnView v) {
 			// TODO Position view
-			top += v.view.getHeight();
+			top -= v.view.getHeight();
 			viewsShown.addFirst(v);
 		}
 		
@@ -241,6 +241,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		}
 		mScrolledPosition += scrollDistance;
 		scrollBy(0, scrollDistance);
+		removeNonVisibleViews(mScrolledPosition);
 		if(scrollDistance > 0) {
 			fillListDown(mScrolledPosition);
 		} else if (scrollDistance < 0) {
@@ -256,11 +257,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 *            Offset of the visible area
 	 */
 	private void removeNonVisibleViews(final int offset) {
-		StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-		Log.d("AntipodalWall", "Removing non visible views for offset: " + offset);
-//		Log.d("AntipodalWall", "Calling method 2: " + stackTraceElements[2].getMethodName());
-//		Log.d("AntipodalWall", "Calling method 3: " + stackTraceElements[3].getMethodName());
-//		Log.d("AntipodalWall", "Calling method 4: " + stackTraceElements[4].getMethodName());
 		// We need to keep close track of the child count in this function. We
 		// should never remove all the views, because if we do, we loose track
 		// of were we are.
@@ -276,7 +272,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			}
 			// Remove hidden views from bottom of columns
 			while(mColumns[i].peekBottomView() != null 
-					&& mColumns[i].peekBottomView().view.getTop() < (offset + mParentHeight)) {
+					&& mColumns[i].peekBottomView().view.getTop() > (offset + mParentHeight)) {
 				poppedView = mColumns[i].popBottomView();
 				removeViewInLayout(poppedView.view);
 				mBottomHiddenViewsPerColumn[i].add(poppedView.indexIntoAdapter);
@@ -368,7 +364,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		if(layoutMode == LAYOUT_MODE_BELOW){
 			topOfChildView = mColumns[columnNumber].getBottom();
 		} else {
-			topOfChildView = mColumns[columnNumber].getTop() + childHeight;
+			topOfChildView = mColumns[columnNumber].getTop() - childHeight;
 		}
 		// TODO Padding
 //		child.layout(left, 
@@ -534,17 +530,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	@Override
 	protected int computeVerticalScrollRange() {
 		return this.finalHeight;
-	}
-	
-	@Override
-	public int getChildCount() {
-		int childCount = super.getChildCount();
-		StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-		Log.d("AntipodalWall", "ChildCount: " + childCount);
-		Log.d("AntipodalWall", "Calling method 2: " + stackTraceElements[2].getMethodName());
-		Log.d("AntipodalWall", "Calling method 3: " + stackTraceElements[3].getMethodName());
-		Log.d("AntipodalWall", "Calling method 4: " + stackTraceElements[4].getMethodName());
-		return childCount;
 	}
 
 	@Override
