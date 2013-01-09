@@ -57,10 +57,11 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 * 
 	 */
 	private class Column {
-		int top, bottom;
+		int top, bottom, verticalSpacing;
 		LinkedList<ColumnView> viewsShown;
 		
-		public Column() {
+		public Column(int verticalSpacing) {
+			this.verticalSpacing = verticalSpacing;
 			viewsShown = new LinkedList<ColumnView>();
 		}
 		
@@ -104,7 +105,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 				return null;
 			} else {
 				ColumnView colView = viewsShown.removeFirst();
-				top += colView.view.getHeight();
+				top += (colView.view.getHeight() + verticalSpacing);
 				return colView;
 			}
 		}
@@ -135,7 +136,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 				return null;
 			} else {
 				ColumnView colView = viewsShown.removeLast();
-				bottom -= colView.view.getHeight();
+				bottom -= (colView.view.getHeight() + verticalSpacing);
 				return colView;
 			}
 		}
@@ -161,7 +162,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		 *            The ColumnView to add to the top of the column.
 		 */
 		public void addTop(ColumnView v) {
-			top -= v.view.getHeight();
+			top -= (v.view.getHeight() + verticalSpacing);
 			viewsShown.addFirst(v);
 		}
 		
@@ -172,7 +173,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		 *            The ColumnView to add to the bottom of the column.
 		 */
 		public void addBottom(ColumnView v) {
-			bottom += v.view.getHeight();
+			bottom += v.view.getHeight() + verticalSpacing;
 			viewsShown.addLast(v);
 		}
 	}
@@ -477,7 +478,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		if(layoutMode == LAYOUT_MODE_BELOW){
 			topOfChildView = mColumns[columnNumber].getBottom();
 		} else {
-			topOfChildView = mColumns[columnNumber].getTop() - childHeight;
+			topOfChildView = mColumns[columnNumber].getTop() - childHeight - mVerticalSpacing;
 		}
 		child.layout(left, 
 				topOfChildView + this.mPaddingT,
@@ -530,11 +531,10 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		this.mColumnWidth = parentUsableWidth
 				/ this.mNumberOfColumns
 				- ((this.mHorizontalSpacing * (this.mNumberOfColumns - 1)) / this.mNumberOfColumns);
-		this.mColumnWidth = parentUsableWidth / this.mNumberOfColumns;
 		if(mColumns == null) {
 			mColumns = new Column[mNumberOfColumns];
 			for(int i = 0; i < mNumberOfColumns; i++) {
-				mColumns[i] = new Column();
+				mColumns[i] = new Column(mVerticalSpacing);
 			}
 		}
 		
@@ -553,7 +553,10 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			final View newBottomchild = mAdapter.getView(lastItemPositionDuringMeasure,
 					getCachedView(), this);
 			measureChild(newBottomchild);
-			shortestColumnBottomEdge += newBottomchild.getMeasuredHeight();
+			if(shortestColumnBottomEdge > 0)
+				shortestColumnBottomEdge += newBottomchild.getMeasuredHeight() + mVerticalSpacing;
+			else
+				shortestColumnBottomEdge += newBottomchild.getMeasuredHeight();
 			columnHeightsDuringMeasure[shortestColumnNumber] = shortestColumnBottomEdge;
 			shortestColumnNumber = findShortestColumnIndex(columnHeightsDuringMeasure);
 			shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
