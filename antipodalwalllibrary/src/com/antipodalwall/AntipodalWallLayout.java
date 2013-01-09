@@ -241,7 +241,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		}
 		mScrolledPosition += scrollDistance;
 		scrollBy(0, scrollDistance);
-		removeNonVisibleViews(mScrolledPosition);
 		if(scrollDistance > 0) {
 			fillListDown(mScrolledPosition);
 		} else if (scrollDistance < 0) {
@@ -257,6 +256,11 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 *            Offset of the visible area
 	 */
 	private void removeNonVisibleViews(final int offset) {
+		StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+		Log.d("AntipodalWall", "Removing non visible views for offset: " + offset);
+//		Log.d("AntipodalWall", "Calling method 2: " + stackTraceElements[2].getMethodName());
+//		Log.d("AntipodalWall", "Calling method 3: " + stackTraceElements[3].getMethodName());
+//		Log.d("AntipodalWall", "Calling method 4: " + stackTraceElements[4].getMethodName());
 		// We need to keep close track of the child count in this function. We
 		// should never remove all the views, because if we do, we loose track
 		// of were we are.
@@ -331,7 +335,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		View newTopChild;
 		for(int currentColumnIndex = 0; currentColumnIndex < mNumberOfColumns; currentColumnIndex++) {
 			currentColumn = mColumns[currentColumnIndex];
-			while (currentColumn.getTop() < offset) {
+			while (currentColumn.getTop() > offset) {
 				// If we're filling up, we've always already seen these views,
 				// so we can add until the stack is empty or our view is full.
 				if(mTopHiddenViewsPerColumn[currentColumnIndex].isEmpty()) break;
@@ -531,10 +535,22 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	protected int computeVerticalScrollRange() {
 		return this.finalHeight;
 	}
+	
+	@Override
+	public int getChildCount() {
+		int childCount = super.getChildCount();
+		StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+		Log.d("AntipodalWall", "ChildCount: " + childCount);
+		Log.d("AntipodalWall", "Calling method 2: " + stackTraceElements[2].getMethodName());
+		Log.d("AntipodalWall", "Calling method 3: " + stackTraceElements[3].getMethodName());
+		Log.d("AntipodalWall", "Calling method 4: " + stackTraceElements[4].getMethodName());
+		return childCount;
+	}
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		if (getChildCount() == 0) {
+			Log.d("AntipodalWall", "Child Count 0. Returning false - touch event not handled.");
 			return false;
 		}
 		switch (event.getAction()) {
