@@ -6,6 +6,8 @@ import java.util.Stack;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -15,168 +17,6 @@ import android.widget.Adapter;
 import android.widget.AdapterView;
 
 public class AntipodalWallLayout extends AdapterView<Adapter> {
-
-	/***
-	 * Container for a View that exists inside a Column. Contains a View as well
-	 * as an index back into the adapter the view came from.
-	 * 
-	 * @author Adam Speakman
-	 * 
-	 */
-	private class ColumnView {
-		/***
-		 * The index of {@link #view} in the Adapter attached to this AdapterView.
-		 */
-		public final int indexIntoAdapter;
-		
-		/***
-		 * The View to display.
-		 */
-		public final View view;
-		
-		/***
-		 * 
-		 * @param index
-		 *            The index into the Adapter.
-		 * @param view
-		 *            The View to display.
-		 */
-		public ColumnView(int index, View view) {
-			this.indexIntoAdapter = index;
-			this.view = view;
-		}
-	}
-
-	/***
-	 * A Column of Views for displaying on the screen. Has methods for adding to
-	 * the top and bottom, and retains the current top/bottom position of the
-	 * views (assuming top of the first view added is in position 0) for
-	 * convenience.
-	 * 
-	 * @author adam
-	 * 
-	 */
-	private class Column {
-		int top, bottom, verticalSpacing;
-		LinkedList<ColumnView> viewsShown;
-		
-		public Column(int verticalSpacing) {
-			this.verticalSpacing = verticalSpacing;
-			viewsShown = new LinkedList<ColumnView>();
-		}
-		
-		/***
-		 * Returns the current 'top' of the views that exist in this column.
-		 * This is the number of pixels between the top of the first view that
-		 * was added to this column (whether it is still present in this column
-		 * or not) and the top of the first view still in this column. If the
-		 * top view has never been popped off, this will be 0. If the top view
-		 * has been popped off, this will be the top of the second view that was
-		 * added to this column, etc.
-		 * 
-		 * @return The top of the current top view in this column.
-		 */
-		public int getTop() {
-			return top;
-		}
-		
-		/***
-		 * Returns the current 'bottom' of the views that exist in this column.
-		 * This is the number of pixels between the top of the first view that
-		 * was added to this column (whether it is still present in this column
-		 * or not) and the bottom of the last view that was added to this
-		 * column.
-		 * 
-		 * @return The bottom of the column.
-		 */
-		public int getBottom() { 
-			return bottom;
-		}
-		
-		/***
-		 * Returns the top view of this column and removes it from the
-		 * column, updating the value of {@link #getTop()}.
-		 * 
-		 * @return The top view of the column, or null if there are no views
-		 *         in this column.
-		 */
-		public ColumnView popTopView() {
-			if(viewsShown.isEmpty()) {
-				return null;
-			} else {
-				ColumnView colView = viewsShown.removeFirst();
-				top += (colView.view.getHeight() + verticalSpacing);
-				return colView;
-			}
-		}
-		
-		/***
-		 * Returns the top view of this column without removing it.
-		 * 
-		 * @return The top view of the column, or null if there are no views
-		 *         in this column.
-		 */
-		public ColumnView peekTopView() {
-			if(viewsShown.isEmpty()) {
-				return null;
-			} else {
-				return viewsShown.getFirst();
-			}
-		}
-		
-		/***
-		 * Returns the bottom view of this column and removes it from the
-		 * column, updating the value of {@link #getBottom()}.
-		 * 
-		 * @return The bottom view of the column, or null if there are no views
-		 *         in this column.
-		 */
-		public ColumnView popBottomView() {
-			if(viewsShown.isEmpty()) {
-				return null;
-			} else {
-				ColumnView colView = viewsShown.removeLast();
-				bottom -= (colView.view.getHeight() + verticalSpacing);
-				return colView;
-			}
-		}
-
-		/***
-		 * Returns the bottom view of this column without removing it.
-		 * 
-		 * @return The bottom view of the column, or null if there are no views
-		 *         in this column.
-		 */
-		public ColumnView peekBottomView() {
-			if(viewsShown.isEmpty()) {
-				return null;
-			} else {
-				return viewsShown.getLast();
-			}
-		}
-		
-		/***
-		 * Adds a new ColumnView to the top of this column, updating the value of {@link #getTop()}.
-		 * 
-		 * @param v
-		 *            The ColumnView to add to the top of the column.
-		 */
-		public void addTop(ColumnView v) {
-			top -= (v.view.getHeight() + verticalSpacing);
-			viewsShown.addFirst(v);
-		}
-		
-		/***
-		 * Adds a new ColumnView to the bottom of this column, updating the value of {@link #getBottom()}.
-		 * 
-		 * @param v
-		 *            The ColumnView to add to the bottom of the column.
-		 */
-		public void addBottom(ColumnView v) {
-			bottom += v.view.getHeight() + verticalSpacing;
-			viewsShown.addLast(v);
-		}
-	}
 
 	/** Represents an invalid child index */
 	private static final int INVALID_INDEX = -1;
@@ -231,7 +71,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 * The scroll position of the list. Should never drop below 0.
 	 * This is how many pixels away from the 0 position we are.
 	 */
-	private int mScrolledPosition = 0;
+	private int mScrolledPosition = 0; // TODO Scroll position will be off because content height will differ!
 	
 	/** The default width spec of child items, for fitting into columns */
 	private int mChildWidthSpec;
@@ -261,7 +101,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 * The height of the view including all children (including those
 	 * off-screen)
 	 */
-	private int mFinalHeight = 0;
+	private int mFinalHeight = 0; // TODO Should this be saved?... Cos it'll be different - images are larger when landscape
 	
 	/** Horizontal spacing between views in this layout */
 	private int mHorizontalSpacing;
@@ -509,8 +349,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		// TODO Needed?
-		//super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+		// TODO This methods code is pretty damn ugly. Fix this shit.
 		// If we don't have an adapter, we don't need to do anything
 		if (mAdapter == null) {
 			super.onMeasure(widthMeasureSpec, heightMeasureSpec);
@@ -605,6 +444,56 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 					MeasureSpec.EXACTLY);
 		}
 		newChild.measure(mChildWidthSpec, childHeightSpec);
+	}
+	
+	// Saving/restoring state, thanks StackOverflow:
+	// http://stackoverflow.com/q/3542333/1217087
+	@Override
+	protected Parcelable onSaveInstanceState() {
+	    //begin boilerplate code that allows parent classes to save state
+	    Parcelable superState = super.onSaveInstanceState();
+
+	    AntipodalWallSavedState ss = new AntipodalWallSavedState(superState);
+	    //end
+	    
+	    ss.mNumberOfColumns = mNumberOfColumns;
+	    ss.mColumns = mColumns;
+	    
+	    ss.mBottomHiddenViewsPerColumn = mBottomHiddenViewsPerColumn;
+	    ss.mTopHiddenViewsPerColumn = mTopHiddenViewsPerColumn;
+	    
+	    ss.mFinalHeight = mFinalHeight;
+	    
+	    ss.mScrolledPosition = mScrolledPosition;
+	    
+	    ss.mLastItemPosition = mLastItemPosition;
+
+	    return ss;
+	}
+	
+	@Override
+	public void onRestoreInstanceState(Parcelable state) {
+		//begin boilerplate code so parent classes can restore state
+	    if(!(state instanceof AntipodalWallSavedState)) {
+	      super.onRestoreInstanceState(state);
+	      return;
+	    }
+
+	    AntipodalWallSavedState ss = (AntipodalWallSavedState)state;
+	    super.onRestoreInstanceState(ss.getSuperState());
+	    //end
+	    
+	    mNumberOfColumns = ss.mNumberOfColumns;
+	    mColumns = ss.mColumns;
+	    
+	    mBottomHiddenViewsPerColumn = ss.mBottomHiddenViewsPerColumn;
+	    mTopHiddenViewsPerColumn = ss.mTopHiddenViewsPerColumn;
+	    
+	    mFinalHeight = ss.mFinalHeight;
+	    
+	    mScrolledPosition = ss.mScrolledPosition;
+	    
+	    mLastItemPosition = ss.mLastItemPosition;
 	}
 
 	@Override
