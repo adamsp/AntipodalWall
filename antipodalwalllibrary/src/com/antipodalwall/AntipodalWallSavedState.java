@@ -22,6 +22,7 @@ public class AntipodalWallSavedState extends BaseSavedState {
 	public int mFinalHeight;
 	public int mScrolledPosition;
 	public int mLastItemPosition;
+	public int mViewWidth;
 
 	public AntipodalWallSavedState(Parcelable in) {
 		super(in);
@@ -72,6 +73,9 @@ public class AntipodalWallSavedState extends BaseSavedState {
 		
 		// mLastItemPosition
 		mLastItemPosition = in.readInt();
+		
+		// mViewWidth
+		mViewWidth = in.readInt();
 	}
 	
 	@Override
@@ -117,6 +121,9 @@ public class AntipodalWallSavedState extends BaseSavedState {
 		
 		// mLastItemPosition
 		out.writeInt(mLastItemPosition);
+		
+		// mViewWidth
+		out.writeInt(mViewWidth);
 	}
 
     public static final Parcelable.Creator<AntipodalWallSavedState> CREATOR =

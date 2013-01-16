@@ -6,13 +6,13 @@ import java.util.Stack;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
-import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.WindowManager;
 import android.widget.Adapter;
 import android.widget.AdapterView;
 
@@ -123,6 +123,8 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 * The columns of views to display.
 	 */
 	private Column[] mColumns;
+	
+	private int mViewWidth;
 
 	@SuppressWarnings("unchecked")
 	public AntipodalWallLayout(Context context, AttributeSet attrs) {
@@ -355,7 +357,15 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 			return;
 		}
+		
 		int parentWidth = MeasureSpec.getSize(widthMeasureSpec);
+	    if(mViewWidth != parentWidth && mViewWidth > 0) {
+	    	// We have a different size view, so all our values need to be scaled.
+	    	double scaleValue = (double)parentWidth / (double)mViewWidth;
+	    	scaleChildViews(scaleValue);
+		}
+	    mViewWidth = parentWidth;
+		
 		// Usable width for children once padding is removed
 		int parentUsableWidth = parentWidth - this.mPaddingL - this.mPaddingR;
 		if (parentUsableWidth < 0)
@@ -467,6 +477,8 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	    ss.mScrolledPosition = mScrolledPosition;
 	    
 	    ss.mLastItemPosition = mLastItemPosition;
+	    
+	    ss.mViewWidth = mViewWidth;
 
 	    return ss;
 	}
@@ -494,6 +506,21 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	    mScrolledPosition = ss.mScrolledPosition;
 	    
 	    mLastItemPosition = ss.mLastItemPosition;
+	   
+	    mViewWidth = ss.mViewWidth; 
+	}
+	
+	private void scaleChildViews(double scaleValue) {
+		for(Column column : mColumns) {
+    		column.scaleBy(scaleValue);
+    	}
+    	mFinalHeight *= scaleValue;
+    	mScrolledPosition *= scaleValue;
+    	invalidate();
+	}
+
+	private int getViewWidth() {
+		return getWidth();
 	}
 
 	@Override

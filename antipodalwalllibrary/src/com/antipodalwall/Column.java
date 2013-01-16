@@ -4,6 +4,8 @@ import java.util.LinkedList;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.view.View;
+import android.view.View.MeasureSpec;
 
 /***
  * A Column of Views for displaying on the screen. Has methods for adding to
@@ -165,4 +167,21 @@ public class Column implements Parcelable {
             return new Column[size];
           }
     };
+
+	/**
+	 * Scales all values in this column by scaleValue. This is useful for when
+	 * the View rotates or changes size and you need to update the size and
+	 * offsets of child elements.
+	 * 
+	 * @param scaleValue
+	 */
+	public void scaleBy(double scaleValue) {
+		top *= scaleValue;
+		bottom *= scaleValue;
+		verticalSpacing *= scaleValue;
+		for(ColumnView colView : viewsShown) {
+			colView.view.measure(MeasureSpec.makeMeasureSpec(colView.view.getMeasuredWidth(), MeasureSpec.EXACTLY),
+					MeasureSpec.makeMeasureSpec(colView.view.getMeasuredHeight(), MeasureSpec.EXACTLY));
+		}
+	}
 }
