@@ -71,7 +71,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 * The scroll position of the list. Should never drop below 0.
 	 * This is how many pixels away from the 0 position we are.
 	 */
-	private int mScrolledPosition = 0; // TODO Scroll position will be off because content height will differ!
+	private int mScrolledPosition = 0;
 	
 	/** The default width spec of child items, for fitting into columns */
 	private int mChildWidthSpec;
@@ -101,7 +101,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 * The height of the view including all children (including those
 	 * off-screen)
 	 */
-	private int mFinalHeight = 0; // TODO Should this be saved?... Cos it'll be different - images are larger when landscape
+	private int mFinalHeight = 0;
 	
 	/** Horizontal spacing between views in this layout */
 	private int mHorizontalSpacing;
@@ -263,6 +263,16 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		}
 		fillListDown(offset);
 	}
+	
+	private View getViewForIndex(int adapterIndex) {
+		View v = mViewsAcquiredFromAdapterDuringMeasure.get(adapterIndex);
+		mViewsAcquiredFromAdapterDuringMeasure.delete(adapterIndex);
+		if(v == null) {
+			v = mAdapter.getView(adapterIndex, getCachedView(), this);
+			measureChild(v);
+		}
+		return v;
+	}
 
 	/**
 	 * Starts at the bottom and adds children downwards until we've filled the
@@ -286,16 +296,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			} else { // We've got a previously seen view to add.
 				adapterIndex = mBottomHiddenViewsPerColumn[shortestColumnIndex].pop(); 
 			}
-			// Get the view (new or previously seen) from the adapter.
-			//newBottomChild = mAdapter.getView(adapterIndex, getCachedView(), this);
-			newBottomChild = mViewsAcquiredFromAdapterDuringMeasure.get(adapterIndex);
-			mViewsAcquiredFromAdapterDuringMeasure.delete(adapterIndex);
-			// We need to re-measure the child to fit.
-			//measureChild(newBottomChild);
-			if(newBottomChild == null) {
-				newBottomChild = mAdapter.getView(adapterIndex, getCachedView(), this);
-				measureChild(newBottomChild);
-			}
+			newBottomChild = getViewForIndex(adapterIndex);
 			addAndLayoutChild(newBottomChild, LAYOUT_MODE_BELOW, shortestColumnIndex);
 			mColumns[shortestColumnIndex].addBottom(new ColumnView(adapterIndex, newBottomChild));
 			shortestColumnIndex = findShortestColumnIndex(mColumns);
@@ -323,12 +324,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 					break;
 				adapterIndex = mTopHiddenViewsPerColumn[currentColumnIndex].pop();
 				//
-				newTopChild = mViewsAcquiredFromAdapterDuringMeasure.get(adapterIndex);
-				mViewsAcquiredFromAdapterDuringMeasure.delete(adapterIndex);
-				if(newTopChild == null) {
-					newTopChild = mAdapter.getView(adapterIndex, getCachedView(), this);
-					measureChild(newTopChild);
-				}
+				newTopChild = getViewForIndex(adapterIndex);
 				addAndLayoutChild(newTopChild, LAYOUT_MODE_ABOVE, currentColumnIndex);
 				currentColumn.addTop(new ColumnView(adapterIndex, newTopChild));
 			}
@@ -438,9 +434,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		int shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
 		while (shortestColumnBottomEdge <= getHeight()
 				&& lastItemPositionDuringMeasure < mAdapter.getCount() - 1) {
-			final View newBottomchild = mAdapter.getView(lastItemPositionDuringMeasure,
-					getCachedView(), this);
-			measureChild(newBottomchild);
+			final View newBottomchild = getViewForIndex(lastItemPositionDuringMeasure);
 			mViewsAcquiredFromAdapterDuringMeasure.put(lastItemPositionDuringMeasure, newBottomchild);
 			if(shortestColumnBottomEdge > 0)
 				shortestColumnBottomEdge += newBottomchild.getMeasuredHeight() + mVerticalSpacing;
@@ -574,7 +568,10 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
     		mColumns[i].scaleBy(scaleValue, mPaddingT, mTopHiddenViewsPerColumn[i].size());
     	}
     	mFinalHeight *= scaleValue;
+    	int scrollDistance = mScrolledPosition;
     	mScrolledPosition *= scaleValue;
+    	scrollDistance = mScrolledPosition - scrollDistance;
+    	scrollBy(0, scrollDistance);
     	invalidate();
 	}
 	
