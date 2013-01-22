@@ -13,7 +13,6 @@ import android.util.SparseArray;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
-import android.view.WindowManager;
 import android.widget.Adapter;
 import android.widget.AdapterView;
 
@@ -30,7 +29,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 
 	/** Children added with this layout mode will be added above the first child */
 	private static final int LAYOUT_MODE_ABOVE = 1;
-
+	
 	/** User is not touching the list */
 	private static final int TOUCH_STATE_RESTING = 0;
 
@@ -128,6 +127,8 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	private int mViewWidth;
 	
 	private SparseArray<View> mViewsAcquiredFromAdapterDuringMeasure;
+
+	private boolean mRestored;
 
 	@SuppressWarnings("unchecked")
 	public AntipodalWallLayout(Context context, AttributeSet attrs) {
@@ -233,6 +234,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 				poppedView = mColumns[i].popBottomView();
 				removeViewInLayout(poppedView.view);
 				mBottomHiddenViewsPerColumn[i].add(poppedView.indexIntoAdapter);
+				mCachedItemViews.add(poppedView.view);
 			}
 		}
 	}
@@ -245,7 +247,20 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 *            to.
 	 */
 	private void fillList(final int offset) {
-		fillListUp(offset);
+		if(mRestored) {
+			for(int i = 0; i < mColumns.length; i++) {
+				int top = mColumns[i].getTop();
+				for(int j = 0; j < mColumns[i].viewsShown.size(); j++) {
+					ColumnView cv = mColumns[i].viewsShown.get(j);
+					layoutExistingChild(cv.view, i, top);
+					top += (mVerticalSpacing + cv.view.getMeasuredHeight());
+				}
+			}
+			mRestored = false;
+		}
+		if(offset > 0) {
+			fillListUp(offset);
+		}
 		fillListDown(offset);
 	}
 
@@ -330,19 +345,18 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 */
 	private void addAndLayoutChild(final View child, final int layoutMode, int columnNumber) {
 		int left = this.mPaddingL + (int) (this.mColumnWidth * columnNumber)
-				+ (this.mHorizontalSpacing * columnNumber);
+		+ (this.mHorizontalSpacing * columnNumber);
 		int childHeight = child.getMeasuredHeight();
 		int childWidth = child.getMeasuredWidth();
 		int topOfChildView;
-		if(layoutMode == LAYOUT_MODE_BELOW){
-			topOfChildView = mColumns[columnNumber].getBottom();
+		if (layoutMode == LAYOUT_MODE_BELOW) {
+			topOfChildView = mColumns[columnNumber].getBottom() + this.mPaddingT;
 		} else {
-			topOfChildView = mColumns[columnNumber].getTop() - childHeight - mVerticalSpacing;
+			topOfChildView = mColumns[columnNumber].getTop() - childHeight
+					- mVerticalSpacing + this.mPaddingT;
 		}
-		child.layout(left, 
-				topOfChildView + this.mPaddingT,
-				left + childWidth,
-				topOfChildView + childHeight + this.mPaddingT);
+		child.layout(left, topOfChildView, left + childWidth,
+				topOfChildView + childHeight);
 		LayoutParams params = child.getLayoutParams();
 		if (params == null) {
 			params = new LayoutParams(LayoutParams.WRAP_CONTENT,
@@ -353,7 +367,16 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		addViewInLayout(child, index, params, true);
 		Log.d("AntipodalWall", "View child added - total of " + getChildCount() + " children.");
 	}
-
+	
+	private void layoutExistingChild(final View child, final int columnNumber, int top) {
+		int left = this.mPaddingL + (int) (this.mColumnWidth * columnNumber)
+				+ (this.mHorizontalSpacing * columnNumber);
+		int childHeight = child.getMeasuredHeight();
+		int childWidth = child.getMeasuredWidth();
+		child.layout(left, top, left + childWidth,
+				top + childHeight + this.mPaddingT);
+	}
+	
 	/**
 	 * Checks if there is a cached view that can be used
 	 * 
@@ -542,21 +565,19 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	    mLastItemPosition = ss.mLastItemPosition;
 	   
 	    mViewWidth = ss.mViewWidth; 
+	    
+	    mRestored = true;
 	}
 	
 	private void scaleChildViews(double scaleValue) {
-		for(Column column : mColumns) {
-    		column.scaleBy(scaleValue);
+		for(int i = 0; i < mNumberOfColumns; i++) {
+    		mColumns[i].scaleBy(scaleValue, mPaddingT, mTopHiddenViewsPerColumn[i].size());
     	}
     	mFinalHeight *= scaleValue;
     	mScrolledPosition *= scaleValue;
     	invalidate();
 	}
-
-	private int getViewWidth() {
-		return getWidth();
-	}
-
+	
 	@Override
 	protected void onLayout(boolean changed, int l, int t, int r, int b) {
 		super.onLayout(changed, l, t, r, b);
@@ -569,11 +590,10 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		if (getChildCount() == 0) {
 			mLastItemPosition = -1;
 			mScrolledPosition = 0;
-			fillListDown(mScrolledPosition);
 		} else {
 			removeNonVisibleViews(mScrolledPosition);
-			fillList(mScrolledPosition);
 		}
+		fillList(mScrolledPosition);
 		invalidate();
 	}
 

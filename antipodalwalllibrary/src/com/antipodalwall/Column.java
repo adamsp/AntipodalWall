@@ -72,7 +72,7 @@ public class Column implements Parcelable {
 			return null;
 		} else {
 			ColumnView colView = viewsShown.removeFirst();
-			top += (colView.view.getHeight() + verticalSpacing);
+			top += (colView.view.getMeasuredHeight() + verticalSpacing);
 			return colView;
 		}
 	}
@@ -103,7 +103,7 @@ public class Column implements Parcelable {
 			return null;
 		} else {
 			ColumnView colView = viewsShown.removeLast();
-			bottom -= (colView.view.getHeight() + verticalSpacing);
+			bottom -= (colView.view.getMeasuredHeight() + verticalSpacing);
 			return colView;
 		}
 	}
@@ -129,7 +129,7 @@ public class Column implements Parcelable {
 	 *            The ColumnView to add to the top of the column.
 	 */
 	public void addTop(ColumnView v) {
-		top -= (v.view.getHeight() + verticalSpacing);
+		top -= (v.view.getMeasuredHeight() + verticalSpacing);
 		viewsShown.addFirst(v);
 	}
 	
@@ -140,7 +140,7 @@ public class Column implements Parcelable {
 	 *            The ColumnView to add to the bottom of the column.
 	 */
 	public void addBottom(ColumnView v) {
-		bottom += v.view.getHeight() + verticalSpacing;
+		bottom += v.view.getMeasuredHeight() + verticalSpacing;
 		viewsShown.addLast(v);
 	}
 
@@ -175,13 +175,19 @@ public class Column implements Parcelable {
 	 * 
 	 * @param scaleValue
 	 */
-	public void scaleBy(double scaleValue) {
-		top *= scaleValue;
-		bottom *= scaleValue;
-		verticalSpacing *= scaleValue;
+	public void scaleBy(double scaleValue, int topOffset, int numTopViews) {
+		int topWithoutSpacing = top - topOffset - (numTopViews * verticalSpacing);
+		topWithoutSpacing *= scaleValue;
+		
+		int bottomWithoutSpacing = bottom - topOffset - ((numTopViews + viewsShown.size()) * verticalSpacing);
+		bottomWithoutSpacing *= scaleValue;
+		
+		top = topWithoutSpacing + topOffset + (numTopViews * verticalSpacing);
+		bottom = bottomWithoutSpacing + topOffset + ((numTopViews + viewsShown.size()) * verticalSpacing);
+		
 		for(ColumnView colView : viewsShown) {
-			colView.view.measure(MeasureSpec.makeMeasureSpec(colView.view.getMeasuredWidth(), MeasureSpec.EXACTLY),
-					MeasureSpec.makeMeasureSpec(colView.view.getMeasuredHeight(), MeasureSpec.EXACTLY));
+			colView.view.measure(MeasureSpec.makeMeasureSpec((int)(colView.view.getMeasuredWidth() * scaleValue), MeasureSpec.EXACTLY),
+					MeasureSpec.makeMeasureSpec((int)(colView.view.getMeasuredHeight() * scaleValue), MeasureSpec.EXACTLY));
 		}
 	}
 }
