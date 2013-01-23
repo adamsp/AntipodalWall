@@ -186,6 +186,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// Don't want to scroll upwards past 0 position.
 		if(mScrolledPosition + scrollDistance < 0) {
 			scrollDistance = -mScrolledPosition;
+			if (scrollDistance == 0) return; // Already at top and scrolling up.
 		} else if (mScrolledPosition + scrollDistance + mParentHeight > mFinalHeight) {
 			// We should only stop scrolling if we've run out of views from the adapter.
 			if(mLastItemPosition >= mAdapter.getCount() - 1) {
@@ -559,6 +560,10 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	    mLastItemPosition = ss.mLastItemPosition;
 	   
 	    mViewWidth = ss.mViewWidth; 
+	    
+	    // Need to clear this as Android appears to cache parts (??) of the member variable.
+	    // Those views which get cached never get re-measured, so are their old size.
+	    mViewsAcquiredFromAdapterDuringMeasure.clear();
 	    
 	    mRestored = true;
 	}
