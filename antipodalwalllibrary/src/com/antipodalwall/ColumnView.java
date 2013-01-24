@@ -12,16 +12,12 @@ import android.view.View;
  * 
  */
 public class ColumnView implements Parcelable {
-	// TODO Do I have to make this parcelable?... Probably.
-	/***
-	 * The index of {@link #view} in the Adapter attached to this AdapterView.
-	 */
-	public final int indexIntoAdapter;
-	
 	/***
 	 * The View to display.
 	 */
 	public final View view;
+	
+	public final ViewSize viewSize;
 	
 	/***
 	 * 
@@ -30,13 +26,13 @@ public class ColumnView implements Parcelable {
 	 * @param view
 	 *            The View to display.
 	 */
-	public ColumnView(int index, View view) {
-		this.indexIntoAdapter = index;
+	public ColumnView(ViewSize vs, View view) {
+		this.viewSize = vs;
 		this.view = view;
 	}
 	
 	private ColumnView(Parcel in) {
-		this(in.readInt(), null);
+		this((ViewSize)in.readParcelable(null), null);
 	}
 	
 	public static final Parcelable.Creator<ColumnView> CREATOR =
@@ -57,6 +53,6 @@ public class ColumnView implements Parcelable {
 
 	@Override
 	public void writeToParcel(Parcel dest, int flags) {
-		dest.writeInt(indexIntoAdapter);
+		dest.writeParcelable(viewSize, 0);
 	}
 }

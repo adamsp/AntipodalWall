@@ -17,8 +17,8 @@ public class AntipodalWallSavedState extends BaseSavedState {
 	
 	public int mNumberOfColumns;
 	public Column[] mColumns;
-	public Stack<Integer>[] mBottomHiddenViewsPerColumn;
-	public Stack<Integer>[] mTopHiddenViewsPerColumn;
+	public Stack<ViewSize>[] mBottomHiddenViewsPerColumn;
+	public Stack<ViewSize>[] mTopHiddenViewsPerColumn;
 	public int mFinalHeight;
 	public int mScrolledPosition;
 	public int mLastItemPosition;
@@ -40,12 +40,11 @@ public class AntipodalWallSavedState extends BaseSavedState {
 		// mBottomHiddenViewsPerColumn Stacks Array
 		mBottomHiddenViewsPerColumn = new Stack[mNumberOfColumns];
 		for(int i = 0; i < mNumberOfColumns; i++) {
-			mBottomHiddenViewsPerColumn[i] = new Stack<Integer>();
+			mBottomHiddenViewsPerColumn[i] = new Stack<ViewSize>();
 			// number of Views in this Stack
 			int size = in.readInt();
-			int[] views = new int[size];
 			// this Stack
-			in.readIntArray(views);
+			ViewSize[] views = (ViewSize[])in.readParcelableArray(null);
 			for(int hv = size - 1; hv >= 0; hv++) {
 				mBottomHiddenViewsPerColumn[i].push(views[hv]);
 			}
@@ -54,12 +53,11 @@ public class AntipodalWallSavedState extends BaseSavedState {
 		// mTopHiddenViewsPerColumn Stacks Array
 		mTopHiddenViewsPerColumn = new Stack[mNumberOfColumns];
 		for(int i = 0; i < mNumberOfColumns; i++) {
-			mTopHiddenViewsPerColumn[i] = new Stack<Integer>();
+			mTopHiddenViewsPerColumn[i] = new Stack<ViewSize>();
 			// number of Views in this Stack
 			int size = in.readInt();
-			int[] views = new int[size];
 			// this Stack
-			in.readIntArray(views);
+			ViewSize[] views = (ViewSize[])in.readParcelableArray(null);
 			for(int hv = size - 1; hv >= 0; hv++) {
 				mTopHiddenViewsPerColumn[i].push(views[hv]);
 			}
@@ -92,12 +90,12 @@ public class AntipodalWallSavedState extends BaseSavedState {
 			int size = mBottomHiddenViewsPerColumn[i].size();
 			// number of Views in this Stack
 			out.writeInt(size);
-			int[] views = new int[size];
+			ViewSize[] views = new ViewSize[size];
 			for (int hv = 0; hv < size; hv++) {
 				views[hv] = mBottomHiddenViewsPerColumn[i].pop();
 			}
 			// this Stack
-			out.writeIntArray(views);
+			out.writeParcelableArray(views, 0);
 		}
 		
 		// mTopHiddenViewsPerColumn Stacks Array
@@ -105,12 +103,12 @@ public class AntipodalWallSavedState extends BaseSavedState {
 			int size = mTopHiddenViewsPerColumn[i].size();
 			// number of Views in this Stack
 			out.writeInt(size);
-			int[] views = new int[size];
+			ViewSize[] views = new ViewSize[size];
 			for (int hv = 0; hv < size; hv++) {
 				views[hv] = mTopHiddenViewsPerColumn[i].pop();
 			}
 			// this Stack
-			out.writeIntArray(views);
+			out.writeParcelableArray(views, 0);
 		}
 		
 		// mFinalHeight

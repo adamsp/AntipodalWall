@@ -4,7 +4,6 @@ import java.util.LinkedList;
 
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.view.View;
 import android.view.View.MeasureSpec;
 
 /***
@@ -19,10 +18,14 @@ import android.view.View.MeasureSpec;
 public class Column implements Parcelable {
 	int verticalSpacing, top, bottom;
 	LinkedList<ColumnView> viewsShown;
+	LinkedList<ViewSize> topHiddenViews;
+	LinkedList<ViewSize> bottomHiddenViews;
 	
 	public Column(int verticalSpacing) {
 		this.verticalSpacing = verticalSpacing;
 		viewsShown = new LinkedList<ColumnView>();
+		topHiddenViews = new LinkedList<ViewSize>();
+		bottomHiddenViews = new LinkedList<ViewSize>();
 	}
 	
 	private Column(Parcel in) {
@@ -30,6 +33,8 @@ public class Column implements Parcelable {
 		c.top = in.readInt();
 		c.bottom = in.readInt();
 		in.readList(c.viewsShown, null);
+		in.readList(c.topHiddenViews, null);
+		in.readList(c.bottomHiddenViews, null);
 	}
 	
 	/***
@@ -73,6 +78,7 @@ public class Column implements Parcelable {
 		} else {
 			ColumnView colView = viewsShown.removeFirst();
 			top += (colView.view.getMeasuredHeight() + verticalSpacing);
+			topHiddenViews.addLast(colView.viewSize);
 			return colView;
 		}
 	}
@@ -104,6 +110,7 @@ public class Column implements Parcelable {
 		} else {
 			ColumnView colView = viewsShown.removeLast();
 			bottom -= (colView.view.getMeasuredHeight() + verticalSpacing);
+			bottomHiddenViews.addFirst(colView.viewSize);
 			return colView;
 		}
 	}
@@ -131,6 +138,8 @@ public class Column implements Parcelable {
 	public void addTop(ColumnView v) {
 		top -= (v.view.getMeasuredHeight() + verticalSpacing);
 		viewsShown.addFirst(v);
+		if(!topHiddenViews.isEmpty())
+			topHiddenViews.removeLast();
 	}
 	
 	/***
@@ -142,6 +151,8 @@ public class Column implements Parcelable {
 	public void addBottom(ColumnView v) {
 		bottom += v.view.getMeasuredHeight() + verticalSpacing;
 		viewsShown.addLast(v);
+		if(!bottomHiddenViews.isEmpty())
+			bottomHiddenViews.removeFirst();
 	}
 
 	@Override
@@ -156,6 +167,8 @@ public class Column implements Parcelable {
 		dest.writeInt(top);
 		dest.writeInt(bottom);
 		dest.writeList(viewsShown);
+		dest.writeList(topHiddenViews);
+		dest.writeList(bottomHiddenViews);
 	}
 	
 	public static final Parcelable.Creator<Column> CREATOR =
@@ -175,19 +188,25 @@ public class Column implements Parcelable {
 	 * 
 	 * @param scaleValue
 	 */
-	public void scaleBy(double scaleValue, int topOffset, int numTopViews) {
-		int topWithoutSpacing = top - topOffset - (numTopViews * verticalSpacing);
-		topWithoutSpacing *= scaleValue;
-		
-		int bottomWithoutSpacing = bottom - topOffset - ((numTopViews + viewsShown.size()) * verticalSpacing);
-		bottomWithoutSpacing *= scaleValue;
-		
-		top = topWithoutSpacing + topOffset + (numTopViews * verticalSpacing);
-		bottom = bottomWithoutSpacing + topOffset + ((numTopViews + viewsShown.size()) * verticalSpacing);
-		
-		for(ColumnView colView : viewsShown) {
-			colView.view.measure(MeasureSpec.makeMeasureSpec((int)(colView.view.getMeasuredWidth() * scaleValue), MeasureSpec.EXACTLY),
-					MeasureSpec.makeMeasureSpec((int)(colView.view.getMeasuredHeight() * scaleValue), MeasureSpec.EXACTLY));
+	public void scaleBy(float viewWidth) {
+		int topWithSpacing = 0;
+		for(ViewSize vs : topHiddenViews) {
+			double scaleRatio = vs.w / viewWidth;
+			int newHeight = (int) (vs.h / scaleRatio);
+			topWithSpacing += (newHeight + verticalSpacing);
 		}
+		
+		int bottomWithSpacing = topWithSpacing;
+		int widthSpec = MeasureSpec.makeMeasureSpec((int)viewWidth, MeasureSpec.EXACTLY);
+		for(ColumnView cv : viewsShown) {
+			double scaleRatio = cv.viewSize.w / viewWidth;
+			int newHeight = (int) (cv.viewSize.h / scaleRatio);
+			bottomWithSpacing += (newHeight + verticalSpacing);
+			cv.view.measure(widthSpec,
+					MeasureSpec.makeMeasureSpec(newHeight, MeasureSpec.EXACTLY));
+		} 
+		
+		top = topWithSpacing;
+		bottom = bottomWithSpacing;
 	}
 }
