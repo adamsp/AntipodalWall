@@ -1,7 +1,5 @@
 package com.antipodalwall;
 
-import java.util.Stack;
-
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.view.View.BaseSavedState;
@@ -32,7 +30,6 @@ public class AntipodalWallSavedState extends BaseSavedState {
 		mNumberOfColumns = in.readInt();
 		
 		// mColumns
-		// TODO Classloader?...
 		mColumns = (Column[]) in.readParcelableArray(null);
 		
 		// mFinalHeight

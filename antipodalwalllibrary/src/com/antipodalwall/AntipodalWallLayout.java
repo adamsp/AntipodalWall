@@ -1,7 +1,6 @@
 package com.antipodalwall;
 
 import java.util.LinkedList;
-import java.util.Stack;
 
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -119,7 +118,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 
 	private boolean mRestored;
 
-	@SuppressWarnings("unchecked")
 	public AntipodalWallLayout(Context context, AttributeSet attrs) {
 		super(context, attrs);
 
@@ -475,7 +473,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 
 	// Saving/restoring state, thanks StackOverflow:
 	// http://stackoverflow.com/q/3542333/1217087
-	@SuppressWarnings("unchecked")
 	@Override
 	protected Parcelable onSaveInstanceState() {
 	    //begin boilerplate code that allows parent classes to save state
@@ -497,17 +494,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 
 	    return ss;
 	}
-	
-	private Stack<ViewSize> deepCloneViewStackForSaving(Stack<ViewSize> stack) {
-		if(stack == null) return null;
-		Stack<ViewSize> newStack = new Stack<ViewSize>();
-		for(ViewSize vs : stack) {
-			// TODO newStack.push(new ColumnView(new ViewSize(cv.viewSize.v, cv.viewSize.h, cv.viewSize.index), null));
-			newStack.push(vs);
-		}
-		return newStack;
-	}
-	
+
 	@Override
 	public void onRestoreInstanceState(Parcelable state) {
 		//begin boilerplate code so parent classes can restore state
