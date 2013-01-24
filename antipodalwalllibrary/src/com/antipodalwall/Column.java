@@ -4,6 +4,7 @@ import java.util.LinkedList;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.view.View.MeasureSpec;
 
 /***
  * A Column of Views for displaying on the screen. Has methods for adding to
@@ -17,10 +18,14 @@ import android.os.Parcelable;
 public class Column implements Parcelable {
 	int verticalSpacing, top, bottom;
 	LinkedList<ColumnView> viewsShown;
+	LinkedList<ViewSize> topHiddenViews;
+	LinkedList<ViewSize> bottomHiddenViews;
 	
 	public Column(int verticalSpacing) {
 		this.verticalSpacing = verticalSpacing;
 		viewsShown = new LinkedList<ColumnView>();
+		topHiddenViews = new LinkedList<ViewSize>();
+		bottomHiddenViews = new LinkedList<ViewSize>();
 	}
 	
 	private Column(Parcel in) {
@@ -28,6 +33,8 @@ public class Column implements Parcelable {
 		c.top = in.readInt();
 		c.bottom = in.readInt();
 		in.readList(c.viewsShown, null);
+		in.readList(c.topHiddenViews, null);
+		in.readList(c.bottomHiddenViews, null);
 	}
 	
 	/***
@@ -70,7 +77,8 @@ public class Column implements Parcelable {
 			return null;
 		} else {
 			ColumnView colView = viewsShown.removeFirst();
-			top += (colView.view.getHeight() + verticalSpacing);
+			top += (colView.view.getMeasuredHeight() + verticalSpacing);
+			topHiddenViews.addLast(colView.viewSize);
 			return colView;
 		}
 	}
@@ -101,7 +109,8 @@ public class Column implements Parcelable {
 			return null;
 		} else {
 			ColumnView colView = viewsShown.removeLast();
-			bottom -= (colView.view.getHeight() + verticalSpacing);
+			bottom -= (colView.view.getMeasuredHeight() + verticalSpacing);
+			bottomHiddenViews.addFirst(colView.viewSize);
 			return colView;
 		}
 	}
@@ -127,8 +136,10 @@ public class Column implements Parcelable {
 	 *            The ColumnView to add to the top of the column.
 	 */
 	public void addTop(ColumnView v) {
-		top -= (v.view.getHeight() + verticalSpacing);
+		top -= (v.view.getMeasuredHeight() + verticalSpacing);
 		viewsShown.addFirst(v);
+		if(!topHiddenViews.isEmpty())
+			topHiddenViews.removeLast();
 	}
 	
 	/***
@@ -138,13 +149,22 @@ public class Column implements Parcelable {
 	 *            The ColumnView to add to the bottom of the column.
 	 */
 	public void addBottom(ColumnView v) {
-		bottom += v.view.getHeight() + verticalSpacing;
+		bottom += v.view.getMeasuredHeight() + verticalSpacing;
 		viewsShown.addLast(v);
+		if(!bottomHiddenViews.isEmpty())
+			bottomHiddenViews.removeFirst();
 	}
-
+	
+	public LinkedList<ViewSize> getTopHiddenViews() {
+		return topHiddenViews;
+	}
+	
+	public LinkedList<ViewSize> getBottomHiddenViews() {
+		return bottomHiddenViews;
+	}
+	
 	@Override
 	public int describeContents() {
-		// TODO Auto-generated method stub
 		return 0;
 	}
 
@@ -154,6 +174,8 @@ public class Column implements Parcelable {
 		dest.writeInt(top);
 		dest.writeInt(bottom);
 		dest.writeList(viewsShown);
+		dest.writeList(topHiddenViews);
+		dest.writeList(bottomHiddenViews);
 	}
 	
 	public static final Parcelable.Creator<Column> CREATOR =
@@ -165,4 +187,33 @@ public class Column implements Parcelable {
             return new Column[size];
           }
     };
+
+	/**
+	 * Scales all values in this column by scaleValue. This is useful for when
+	 * the View rotates or changes size and you need to update the size and
+	 * offsets of child elements.
+	 * 
+	 * @param scaleValue
+	 */
+	public void scaleBy(float viewWidth) {
+		int topWithSpacing = 0;
+		for(ViewSize vs : topHiddenViews) {
+			double scaleRatio = vs.w / viewWidth;
+			int newHeight = (int) (vs.h / scaleRatio);
+			topWithSpacing += (newHeight + verticalSpacing);
+		}
+		
+		int bottomWithSpacing = topWithSpacing;
+		int widthSpec = MeasureSpec.makeMeasureSpec((int)viewWidth, MeasureSpec.EXACTLY);
+		for(ColumnView cv : viewsShown) {
+			double scaleRatio = cv.viewSize.w / viewWidth;
+			int newHeight = (int) (cv.viewSize.h / scaleRatio);
+			bottomWithSpacing += (newHeight + verticalSpacing);
+			cv.view.measure(widthSpec,
+					MeasureSpec.makeMeasureSpec(newHeight, MeasureSpec.EXACTLY));
+		} 
+		
+		top = topWithSpacing;
+		bottom = bottomWithSpacing;
+	}
 }
