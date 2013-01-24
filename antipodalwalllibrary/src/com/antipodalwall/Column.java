@@ -154,7 +154,15 @@ public class Column implements Parcelable {
 		if(!bottomHiddenViews.isEmpty())
 			bottomHiddenViews.removeFirst();
 	}
-
+	
+	public LinkedList<ViewSize> getTopHiddenViews() {
+		return topHiddenViews;
+	}
+	
+	public LinkedList<ViewSize> getBottomHiddenViews() {
+		return bottomHiddenViews;
+	}
+	
 	@Override
 	public int describeContents() {
 		// TODO Auto-generated method stub

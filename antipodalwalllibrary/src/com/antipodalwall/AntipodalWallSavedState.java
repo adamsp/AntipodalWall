@@ -17,8 +17,6 @@ public class AntipodalWallSavedState extends BaseSavedState {
 	
 	public int mNumberOfColumns;
 	public Column[] mColumns;
-	public Stack<ViewSize>[] mBottomHiddenViewsPerColumn;
-	public Stack<ViewSize>[] mTopHiddenViewsPerColumn;
 	public int mFinalHeight;
 	public int mScrolledPosition;
 	public int mLastItemPosition;
@@ -36,32 +34,6 @@ public class AntipodalWallSavedState extends BaseSavedState {
 		// mColumns
 		// TODO Classloader?...
 		mColumns = (Column[]) in.readParcelableArray(null);
-
-		// mBottomHiddenViewsPerColumn Stacks Array
-		mBottomHiddenViewsPerColumn = new Stack[mNumberOfColumns];
-		for(int i = 0; i < mNumberOfColumns; i++) {
-			mBottomHiddenViewsPerColumn[i] = new Stack<ViewSize>();
-			// number of Views in this Stack
-			int size = in.readInt();
-			// this Stack
-			ViewSize[] views = (ViewSize[])in.readParcelableArray(null);
-			for(int hv = size - 1; hv >= 0; hv++) {
-				mBottomHiddenViewsPerColumn[i].push(views[hv]);
-			}
-		}
-		
-		// mTopHiddenViewsPerColumn Stacks Array
-		mTopHiddenViewsPerColumn = new Stack[mNumberOfColumns];
-		for(int i = 0; i < mNumberOfColumns; i++) {
-			mTopHiddenViewsPerColumn[i] = new Stack<ViewSize>();
-			// number of Views in this Stack
-			int size = in.readInt();
-			// this Stack
-			ViewSize[] views = (ViewSize[])in.readParcelableArray(null);
-			for(int hv = size - 1; hv >= 0; hv++) {
-				mTopHiddenViewsPerColumn[i].push(views[hv]);
-			}
-		}
 		
 		// mFinalHeight
 		mFinalHeight = in.readInt();
@@ -84,32 +56,6 @@ public class AntipodalWallSavedState extends BaseSavedState {
 
 		// mColumns
 		out.writeParcelableArray(mColumns, 0);
-
-		// mBottomHiddenViewsPerColumn Stacks Array
-		for (int i = 0; i < mNumberOfColumns; i++) {
-			int size = mBottomHiddenViewsPerColumn[i].size();
-			// number of Views in this Stack
-			out.writeInt(size);
-			ViewSize[] views = new ViewSize[size];
-			for (int hv = 0; hv < size; hv++) {
-				views[hv] = mBottomHiddenViewsPerColumn[i].pop();
-			}
-			// this Stack
-			out.writeParcelableArray(views, 0);
-		}
-		
-		// mTopHiddenViewsPerColumn Stacks Array
-		for (int i = 0; i < mNumberOfColumns; i++) {
-			int size = mTopHiddenViewsPerColumn[i].size();
-			// number of Views in this Stack
-			out.writeInt(size);
-			ViewSize[] views = new ViewSize[size];
-			for (int hv = 0; hv < size; hv++) {
-				views[hv] = mTopHiddenViewsPerColumn[i].pop();
-			}
-			// this Stack
-			out.writeParcelableArray(views, 0);
-		}
 		
 		// mFinalHeight
 		out.writeInt(mFinalHeight);

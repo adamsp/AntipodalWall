@@ -108,17 +108,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	
 	/** Vertical spacing between views in this layout */
 	private int mVerticalSpacing;
-	
-	/**
-	 * Indexes into the adapter for the views above the currently drawn parts of
-	 * each column.
-	 */
-	private Stack<ViewSize>[] mTopHiddenViewsPerColumn;
-	/**
-	 * Indexes into the adapter for the views below the currently drawn parts of
-	 * each column.
-	 */
-	private Stack<ViewSize>[] mBottomHiddenViewsPerColumn;
 	/**
 	 * The columns of views to display.
 	 */
@@ -145,12 +134,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 				R.styleable.AntipodalWallAttrs_android_columnCount, 1);
 		if (this.mNumberOfColumns < 1)
 			this.mNumberOfColumns = 1;
-		mTopHiddenViewsPerColumn = new Stack[mNumberOfColumns];
-		mBottomHiddenViewsPerColumn = new Stack[mNumberOfColumns];
-		for(int i = 0; i < mNumberOfColumns; i++){
-			mTopHiddenViewsPerColumn[i] = new Stack<ViewSize>();
-			mBottomHiddenViewsPerColumn[i] = new Stack<ViewSize>();
-		}
 		
 		// Use this as default if L/T/R/B not specified
 		int defaultPadding = a.getDimensionPixelSize(
@@ -183,6 +166,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 *            The distance to scroll - negative for scrolling up.
 	 */
 	private void scrollList(int scrollDistance) {
+		// TODO Note for if/when implementing 'fling', never scroll more than height of the view in one go, that way you won't "skip" child views?
 		// Don't want to scroll upwards past 0 position.
 		if(mScrolledPosition + scrollDistance < 0) {
 			scrollDistance = -mScrolledPosition;
@@ -192,9 +176,9 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			if(mLastItemPosition >= mAdapter.getCount() - 1) {
 				// If our last position is the end of the adapter, then we've seen all views from the adapter.
 				boolean stopScrolling = true;
-				for(Stack<ViewSize> hiddenViews : mBottomHiddenViewsPerColumn){
+				for(Column c : mColumns){
 					// If we still have hidden views, we're not at the bottom of the list. Keep scrolling.
-					if(!hiddenViews.isEmpty()) {
+					if(!c.getBottomHiddenViews().isEmpty()) {
 						stopScrolling = false;
 						break;
 					}
@@ -226,7 +210,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 					&& mColumns[i].peekTopView().view.getBottom() < offset) {
 				poppedView = mColumns[i].popTopView();
 				removeViewInLayout(poppedView.view);
-				mTopHiddenViewsPerColumn[i].add(poppedView.viewSize);
 				mCachedItemViews.add(poppedView.view);
 			}
 			// Remove hidden views from bottom of columns
@@ -234,7 +217,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 					&& mColumns[i].peekBottomView().view.getTop() > (offset + mParentHeight)) {
 				poppedView = mColumns[i].popBottomView();
 				removeViewInLayout(poppedView.view);
-				mBottomHiddenViewsPerColumn[i].add(poppedView.viewSize);
 				mCachedItemViews.add(poppedView.view);
 			}
 		}
@@ -290,13 +272,13 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		int adapterIndex;
 		while (shortestEdge - offset <= mParentHeight) {
 			// We've reached the bottom of our previously seen views, need a new one.
-			if(mBottomHiddenViewsPerColumn[shortestColumnIndex].isEmpty()) {
+			if(mColumns[shortestColumnIndex].getBottomHiddenViews().isEmpty()) {
 				// The adapter has run out of views - stop adding views.
 				if(mLastItemPosition >= mAdapter.getCount() - 1) break;
 				mLastItemPosition++;
 				adapterIndex = mLastItemPosition;
 			} else { // We've got a previously seen view to add.
-				adapterIndex = mBottomHiddenViewsPerColumn[shortestColumnIndex].pop().index; 
+				adapterIndex = mColumns[shortestColumnIndex].getBottomHiddenViews().getFirst().index; 
 			}
 			newBottomChild = getViewForIndex(adapterIndex);
 			addAndLayoutChild(newBottomChild.view, LAYOUT_MODE_BELOW, shortestColumnIndex);
@@ -322,9 +304,9 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			while (currentColumn.getTop() > offset) {
 				// If we're filling up, we've always already seen these views,
 				// so we can add until the stack is empty or our view is full.
-				if(mTopHiddenViewsPerColumn[currentColumnIndex].isEmpty())
+				if(mColumns[currentColumnIndex].getTopHiddenViews().isEmpty())
 					break;
-				adapterIndex = mTopHiddenViewsPerColumn[currentColumnIndex].pop().index;
+				adapterIndex = mColumns[currentColumnIndex].getTopHiddenViews().getLast().index;
 				newTopChild = getViewForIndex(adapterIndex);
 				addAndLayoutChild(newTopChild.view, LAYOUT_MODE_ABOVE, currentColumnIndex);
 				currentColumn.addTop(newTopChild);
@@ -505,15 +487,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	    ss.mNumberOfColumns = mNumberOfColumns;
 	    ss.mColumns = mColumns;
 	    
-	    ss.mBottomHiddenViewsPerColumn = new Stack[mBottomHiddenViewsPerColumn.length];
-	    for(int i = 0; i < mBottomHiddenViewsPerColumn.length; i++) {
-	    	ss.mBottomHiddenViewsPerColumn[i] = deepCloneViewStackForSaving(mBottomHiddenViewsPerColumn[i]);
-	    }
-	    ss.mTopHiddenViewsPerColumn = new Stack[mTopHiddenViewsPerColumn.length];
-	    for(int i = 0; i < mTopHiddenViewsPerColumn.length; i++) {
-	    	ss.mTopHiddenViewsPerColumn[i] = deepCloneViewStackForSaving(mTopHiddenViewsPerColumn[i]);
-	    }
-	    
 	    ss.mFinalHeight = mFinalHeight;
 	    
 	    ss.mScrolledPosition = mScrolledPosition;
@@ -549,9 +522,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	    
 	    mNumberOfColumns = ss.mNumberOfColumns;
 	    mColumns = ss.mColumns;
-	    
-	    mBottomHiddenViewsPerColumn = ss.mBottomHiddenViewsPerColumn;
-	    mTopHiddenViewsPerColumn = ss.mTopHiddenViewsPerColumn;
 	    
 	    mFinalHeight = ss.mFinalHeight;
 	    
