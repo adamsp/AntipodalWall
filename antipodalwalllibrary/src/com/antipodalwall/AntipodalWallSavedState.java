@@ -30,7 +30,7 @@ public class AntipodalWallSavedState extends BaseSavedState {
 		mNumberOfColumns = in.readInt();
 		
 		// mColumns
-		mColumns = (Column[]) in.readParcelableArray(null);
+		mColumns = (Column[]) in.readParcelableArray(Column.class.getClassLoader());
 		
 		// mFinalHeight
 		mFinalHeight = in.readInt();

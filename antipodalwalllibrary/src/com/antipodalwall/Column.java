@@ -32,9 +32,9 @@ public class Column implements Parcelable {
 		Column c = new Column(in.readInt());
 		c.top = in.readInt();
 		c.bottom = in.readInt();
-		in.readList(c.viewsShown, null);
-		in.readList(c.topHiddenViews, null);
-		in.readList(c.bottomHiddenViews, null);
+		in.readList(c.viewsShown, ColumnView.class.getClassLoader());
+		in.readList(c.topHiddenViews, ViewSize.class.getClassLoader());
+		in.readList(c.bottomHiddenViews, ViewSize.class.getClassLoader());
 	}
 	
 	/***

@@ -32,7 +32,7 @@ public class ColumnView implements Parcelable {
 	}
 	
 	private ColumnView(Parcel in) {
-		this((ViewSize)in.readParcelable(null), null);
+		this((ViewSize)in.readParcelable(ViewSize.class.getClassLoader()), null);
 	}
 	
 	public static final Parcelable.Creator<ColumnView> CREATOR =
