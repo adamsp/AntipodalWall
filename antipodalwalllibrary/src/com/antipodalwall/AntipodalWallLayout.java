@@ -51,11 +51,11 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	private int mTouchStartY;
 
 	/**
-	 * The adaptor position of the last visible item (that is, the last item
-	 * we've ever loaded from the adapter - it may not be currently drawn on the
+	 * The adaptor position of the next visible item (that is, the next item
+	 * we're going to load from the adapter - it may not be currently drawn on the
 	 * screen)
 	 */
-	private int mLastItemPosition;
+	private int mNextItemPosition;
 
 	/** A list of cached (re-usable) item views */
 	private final LinkedList<View> mCachedItemViews = new LinkedList<View>();
@@ -171,7 +171,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			if (scrollDistance == 0) return; // Already at top and scrolling up.
 		} else if (mScrolledPosition + scrollDistance + mParentHeight > mFinalHeight) {
 			// We should only stop scrolling if we've run out of views from the adapter.
-			if(mLastItemPosition >= mAdapter.getCount() - 1) {
+			if(mNextItemPosition >= mAdapter.getCount()) {
 				// If our last position is the end of the adapter, then we've seen all views from the adapter.
 				boolean stopScrolling = true;
 				for(Column c : mColumns){
@@ -272,9 +272,9 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			// We've reached the bottom of our previously seen views, need a new one.
 			if(mColumns[shortestColumnIndex].getBottomHiddenViews().isEmpty()) {
 				// The adapter has run out of views - stop adding views.
-				if(mLastItemPosition >= mAdapter.getCount() - 1) break;
-				mLastItemPosition++;
-				adapterIndex = mLastItemPosition;
+				if(mNextItemPosition >= mAdapter.getCount()) break;
+				adapterIndex = mNextItemPosition;
+				mNextItemPosition++;
 			} else { // We've got a previously seen view to add.
 				adapterIndex = mColumns[shortestColumnIndex].getBottomHiddenViews().getFirst().index; 
 			}
@@ -406,7 +406,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// force the width of the children to be that of the columns...
 		mChildWidthSpec = MeasureSpec.makeMeasureSpec((int) this.mColumnWidth, MeasureSpec.EXACTLY);
 		// ... but let them grow vertically
-		int lastItemPositionDuringMeasure = mLastItemPosition;
+		int lastItemPositionDuringMeasure = mNextItemPosition;
 		int[] columnHeightsDuringMeasure = new int[mNumberOfColumns];
 		for(int i = 0; i < mNumberOfColumns; i++)
 			columnHeightsDuringMeasure[i] = mColumns[i].getBottom();
@@ -488,7 +488,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	    
 	    ss.mScrolledPosition = mScrolledPosition;
 	    
-	    ss.mLastItemPosition = mLastItemPosition;
+	    ss.mNextItemPosition = mNextItemPosition;
 	    
 	    ss.mViewWidth = mViewWidth;
 
@@ -514,7 +514,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	    
 	    mScrolledPosition = ss.mScrolledPosition;
 	    
-	    mLastItemPosition = ss.mLastItemPosition;
+	    mNextItemPosition = ss.mNextItemPosition;
 	   
 	    mViewWidth = ss.mViewWidth; 
 	    
@@ -548,7 +548,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		}
 
 		if (getChildCount() == 0) {
-			mLastItemPosition = -1;
+			mNextItemPosition = 0;
 			mScrolledPosition = 0;
 		} else {
 			removeNonVisibleViews(mScrolledPosition);

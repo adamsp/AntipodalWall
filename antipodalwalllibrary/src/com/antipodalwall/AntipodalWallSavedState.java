@@ -17,7 +17,7 @@ public class AntipodalWallSavedState extends BaseSavedState {
 	public Column[] mColumns;
 	public int mFinalHeight;
 	public int mScrolledPosition;
-	public int mLastItemPosition;
+	public int mNextItemPosition;
 	public int mViewWidth;
 
 	public AntipodalWallSavedState(Parcelable in) {
@@ -38,8 +38,8 @@ public class AntipodalWallSavedState extends BaseSavedState {
 		// mScrolledPosition
 		mScrolledPosition = in.readInt();
 		
-		// mLastItemPosition
-		mLastItemPosition = in.readInt();
+		// mNextItemPosition
+		mNextItemPosition = in.readInt();
 		
 		// mViewWidth
 		mViewWidth = in.readInt();
@@ -60,8 +60,8 @@ public class AntipodalWallSavedState extends BaseSavedState {
 		// mScrolledPosition
 		out.writeInt(mScrolledPosition);
 		
-		// mLastItemPosition
-		out.writeInt(mLastItemPosition);
+		// mNextItemPosition
+		out.writeInt(mNextItemPosition);
 		
 		// mViewWidth
 		out.writeInt(mViewWidth);
