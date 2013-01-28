@@ -678,9 +678,11 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	
 	@Override
 	public void setAdapter(Adapter adapter) {
-		mAdapter = adapter;
-		removeAllViewsInLayout();
-		requestLayout();
+		if(mAdapter != adapter) {
+			mAdapter = adapter;
+			removeAllViewsInLayout();
+			requestLayout();
+		}
 	}
 	
 	@Override
