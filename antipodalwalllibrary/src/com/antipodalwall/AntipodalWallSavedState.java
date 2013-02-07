@@ -8,10 +8,10 @@ import android.view.View.BaseSavedState;
  * Saving state for the layout! Thanks, Stack Overflow:
  * http://stackoverflow.com/q/3542333/1217087
  * 
- * @author adam
+ * @author Adam Speakman
  * 
  */
-public class AntipodalWallSavedState extends BaseSavedState {
+class AntipodalWallSavedState extends BaseSavedState {
 	
 	public int mNumberOfColumns;
 	public Column[] mColumns;

@@ -250,7 +250,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		mViewsAcquiredFromAdapterDuringMeasure.delete(adapterIndex);
 		if(cv == null) {
 			View v = mAdapter.getView(adapterIndex, getCachedView(), this);
-			cv = new ColumnView(new ViewSize(v.getMeasuredWidth(), v.getMeasuredHeight(), adapterIndex), v);
+			cv = new ColumnView(new AdapterViewDetails(v.getMeasuredWidth(), v.getMeasuredHeight(), adapterIndex), v);
 			measureChild(v);
 		}
 		return cv;
@@ -382,11 +382,6 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 			parentUsableWidth = 0;
 
 		this.mParentHeight = MeasureSpec.getSize(heightMeasureSpec);
-		// Usable height for children once padding is removed
-		int parentUsableHeight = this.mParentHeight - this.mPaddingT
-				- this.mPaddingB;
-		if (parentUsableHeight < 0)
-			parentUsableHeight = 0;
 		this.mColumnWidth = parentUsableWidth
 				/ this.mNumberOfColumns
 				- ((this.mHorizontalSpacing * (this.mNumberOfColumns - 1)) / this.mNumberOfColumns);

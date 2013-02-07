@@ -6,33 +6,36 @@ import android.view.View;
 
 /***
  * Container for a View that exists inside a Column. Contains a View as well
- * as an index back into the adapter the view came from.
+ * as a details about the original view from the adapter.
  * 
  * @author Adam Speakman
  * 
  */
-public class ColumnView implements Parcelable {
+class ColumnView implements Parcelable {
 	/***
 	 * The View to display.
 	 */
 	public final View view;
-	
-	public final ViewSize viewSize;
+
+    /**
+     * Details of the original View from the adapter.
+     */
+	public final AdapterViewDetails details;
 	
 	/***
 	 * 
-	 * @param index
-	 *            The index into the Adapter.
+	 * @param details
+	 *            The details of the original view.
 	 * @param view
 	 *            The View to display.
 	 */
-	public ColumnView(ViewSize vs, View view) {
-		this.viewSize = vs;
+	public ColumnView(AdapterViewDetails details, View view) {
+		this.details = details;
 		this.view = view;
 	}
 	
 	private ColumnView(Parcel in) {
-		this((ViewSize)in.readParcelable(ViewSize.class.getClassLoader()), null);
+		this((AdapterViewDetails)in.readParcelable(AdapterViewDetails.class.getClassLoader()), null);
 	}
 	
 	public static final Parcelable.Creator<ColumnView> CREATOR =
@@ -52,6 +55,6 @@ public class ColumnView implements Parcelable {
 
 	@Override
 	public void writeToParcel(Parcel dest, int flags) {
-		dest.writeParcelable(viewSize, 0);
+		dest.writeParcelable(details, 0);
 	}
 }

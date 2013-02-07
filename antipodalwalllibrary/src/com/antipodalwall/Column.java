@@ -12,20 +12,24 @@ import android.view.View.MeasureSpec;
  * views (assuming top of the first view added is in position 0) for
  * convenience.
  * 
- * @author adam
+ * @author Adam Speakman
  * 
  */
-public class Column implements Parcelable {
+class Column implements Parcelable {
 	int verticalSpacing, top, bottom;
 	LinkedList<ColumnView> viewsShown;
-	LinkedList<ViewSize> topHiddenViews;
-	LinkedList<ViewSize> bottomHiddenViews;
-	
+	LinkedList<AdapterViewDetails> topHiddenViews;
+	LinkedList<AdapterViewDetails> bottomHiddenViews;
+
+    /**
+     *
+     * @param verticalSpacing The amount of space (in pixels) between views.
+     */
 	public Column(int verticalSpacing) {
 		this.verticalSpacing = verticalSpacing;
 		viewsShown = new LinkedList<ColumnView>();
-		topHiddenViews = new LinkedList<ViewSize>();
-		bottomHiddenViews = new LinkedList<ViewSize>();
+		topHiddenViews = new LinkedList<AdapterViewDetails>();
+		bottomHiddenViews = new LinkedList<AdapterViewDetails>();
 	}
 	
 	private Column(Parcel in) {
@@ -33,8 +37,8 @@ public class Column implements Parcelable {
 		c.top = in.readInt();
 		c.bottom = in.readInt();
 		in.readList(c.viewsShown, ColumnView.class.getClassLoader());
-		in.readList(c.topHiddenViews, ViewSize.class.getClassLoader());
-		in.readList(c.bottomHiddenViews, ViewSize.class.getClassLoader());
+		in.readList(c.topHiddenViews, AdapterViewDetails.class.getClassLoader());
+		in.readList(c.bottomHiddenViews, AdapterViewDetails.class.getClassLoader());
 	}
 	
 	/***
@@ -78,7 +82,7 @@ public class Column implements Parcelable {
 		} else {
 			ColumnView colView = viewsShown.removeFirst();
 			top += (colView.view.getMeasuredHeight() + verticalSpacing);
-			topHiddenViews.addLast(colView.viewSize);
+			topHiddenViews.addLast(colView.details);
 			return colView;
 		}
 	}
@@ -110,7 +114,7 @@ public class Column implements Parcelable {
 		} else {
 			ColumnView colView = viewsShown.removeLast();
 			bottom -= (colView.view.getMeasuredHeight() + verticalSpacing);
-			bottomHiddenViews.addFirst(colView.viewSize);
+			bottomHiddenViews.addFirst(colView.details);
 			return colView;
 		}
 	}
@@ -155,11 +159,11 @@ public class Column implements Parcelable {
 			bottomHiddenViews.removeFirst();
 	}
 	
-	public LinkedList<ViewSize> getTopHiddenViews() {
+	public LinkedList<AdapterViewDetails> getTopHiddenViews() {
 		return topHiddenViews;
 	}
 	
-	public LinkedList<ViewSize> getBottomHiddenViews() {
+	public LinkedList<AdapterViewDetails> getBottomHiddenViews() {
 		return bottomHiddenViews;
 	}
 	
@@ -189,25 +193,25 @@ public class Column implements Parcelable {
     };
 
 	/**
-	 * Scales all values in this column by scaleValue. This is useful for when
-	 * the View rotates or changes size and you need to update the size and
-	 * offsets of child elements.
+	 * Resizes all views that this column knows about to fit the
+     * specified width. This adjusts the top and bottom values of
+     * this column, and re-measures the views shown.
 	 * 
-	 * @param scaleValue
+	 * @param columnWidth The width of the column.
 	 */
-	public void scaleBy(float viewWidth) {
+	public void scaleBy(float columnWidth) {
 		int topWithSpacing = 0;
-		for(ViewSize vs : topHiddenViews) {
-			double scaleRatio = vs.w / viewWidth;
-			int newHeight = (int) (vs.h / scaleRatio);
+		for(AdapterViewDetails vs : topHiddenViews) {
+			double scaleRatio = vs.width / columnWidth;
+			int newHeight = (int) (vs.height / scaleRatio);
 			topWithSpacing += (newHeight + verticalSpacing);
 		}
 		
 		int bottomWithSpacing = topWithSpacing;
-		int widthSpec = MeasureSpec.makeMeasureSpec((int)viewWidth, MeasureSpec.EXACTLY);
+		int widthSpec = MeasureSpec.makeMeasureSpec((int)columnWidth, MeasureSpec.EXACTLY);
 		for(ColumnView cv : viewsShown) {
-			double scaleRatio = cv.viewSize.w / viewWidth;
-			int newHeight = (int) (cv.viewSize.h / scaleRatio);
+			double scaleRatio = cv.details.width / columnWidth;
+			int newHeight = (int) (cv.details.height / scaleRatio);
 			bottomWithSpacing += (newHeight + verticalSpacing);
 			cv.view.measure(widthSpec,
 					MeasureSpec.makeMeasureSpec(newHeight, MeasureSpec.EXACTLY));
