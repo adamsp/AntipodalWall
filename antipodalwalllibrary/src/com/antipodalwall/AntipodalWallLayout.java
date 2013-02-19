@@ -156,6 +156,15 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		a.recycle();
 	}
 
+    public void setNumberOfColumns(int numCols) {
+        if(numCols != mNumberOfColumns) {
+            if (numCols < 1)
+                numCols = 1;
+            mNumberOfColumns = numCols;
+            invalidate();
+        }
+    }
+
 	/**
 	 * Scrolls the list. Handles not scrolling past the top and bottom of the
 	 * list.
