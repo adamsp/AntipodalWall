@@ -17,6 +17,9 @@ import android.widget.AdapterView;
 
 public class AntipodalWallLayout extends AdapterView<Adapter> {
 
+    private static final String TAG = "AntipodalWall";
+    private static final boolean DEBUG = true;
+
 	/** Represents an invalid child index */
 	private static final int INVALID_INDEX = -1;
 
@@ -217,6 +220,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 					&& mColumns[i].peekTopView().view.getBottom() < offset) {
 				poppedView = mColumns[i].popTopView();
 				removeViewInLayout(poppedView.view);
+                if(DEBUG) Log.d(TAG, "View child removed from top - total of " + getChildCount() + " children.");
 				mCachedItemViews.add(poppedView.view);
 			}
 			// Remove hidden views from bottom of columns
@@ -224,6 +228,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 					&& mColumns[i].peekBottomView().view.getTop() > (offset + mParentHeight)) {
 				poppedView = mColumns[i].popBottomView();
 				removeViewInLayout(poppedView.view);
+                if(DEBUG) Log.d(TAG, "View child removed from bottom - total of " + getChildCount() + " children.");
 				mCachedItemViews.add(poppedView.view);
 			}
 		}
@@ -302,7 +307,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	 *            Offset of the visible area
 	 */
 	private void fillListUp(final int offset) {
-		Log.d("AntipodalWall", "fillListUp called with offset " + offset);
+		if(DEBUG) Log.d(TAG, "fillListUp called with offset " + offset);
 		Column currentColumn;
 		int adapterIndex;
 		ColumnView newTopChild;
@@ -351,7 +356,8 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// -1 means put it at the end, 0 means at the beginning.
 		final int index = layoutMode == LAYOUT_MODE_ABOVE ? 0 : -1;
 		addViewInLayout(child, index, params, true);
-		Log.d("AntipodalWall", "View child added - total of " + getChildCount() + " children.");
+        if(DEBUG) Log.d(TAG, "View child added to " + (index == -1 ? "bottom" : "top")
+                + " - total of " + getChildCount() + " children.");
 	}
 	
 	private void layoutExistingChild(final View child, final int columnNumber, int top) {
@@ -377,7 +383,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		// TODO This methods code is pretty damn ugly. Fix this shit.
+        if(DEBUG) Log.d(TAG, "onMeasure() called.");
 		// If we don't have an adapter, we don't need to do anything
 		if (mAdapter == null) {
 			super.onMeasure(widthMeasureSpec, heightMeasureSpec);
@@ -410,31 +416,27 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		// force the width of the children to be that of the columns...
 		mChildWidthSpec = MeasureSpec.makeMeasureSpec((int) this.mColumnWidth, MeasureSpec.EXACTLY);
 		// ... but let them grow vertically
-		int lastItemPositionDuringMeasure = mNextItemPosition;
-		int[] columnHeightsDuringMeasure = new int[mNumberOfColumns];
-		for(int i = 0; i < mNumberOfColumns; i++)
-			columnHeightsDuringMeasure[i] = mColumns[i].getBottom();
-		int shortestColumnNumber = findShortestColumnIndex(columnHeightsDuringMeasure);
-		int shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
-		while (shortestColumnBottomEdge <= getHeight()
-				&& lastItemPositionDuringMeasure < mAdapter.getCount() - 1) {
-			final ColumnView newBottomchild = getViewForIndex(lastItemPositionDuringMeasure);
-			mViewsAcquiredFromAdapterDuringMeasure.put(lastItemPositionDuringMeasure, newBottomchild);
-			if(shortestColumnBottomEdge > 0)
-				shortestColumnBottomEdge += newBottomchild.view.getMeasuredHeight() + mVerticalSpacing;
-			else
-				shortestColumnBottomEdge += newBottomchild.view.getMeasuredHeight();
-			columnHeightsDuringMeasure[shortestColumnNumber] = shortestColumnBottomEdge;
-			shortestColumnNumber = findShortestColumnIndex(columnHeightsDuringMeasure);
-			shortestColumnBottomEdge = columnHeightsDuringMeasure[shortestColumnNumber];
-			lastItemPositionDuringMeasure++;
-		}
-		
-		// get the final heigth of the viewgroup. it will be that of the higher
-		// column once all chidren is in place, plus the top & bottom padding
-		this.mFinalHeight = columnHeightsDuringMeasure[findLongestColumnIndex(columnHeightsDuringMeasure)] 
-		                                               + mPaddingB + mPaddingT;
 
+        // If our columns are *not* empty, then our height will be the tallest/longest column.
+        int columnHeight = mColumns[findLongestColumnIndex(mColumns)].getBottom();
+
+        // If our columns *are* empty, then we need to figure out what *will* fill them and measure
+        // the height using that.
+        if(columnHeight == 0) {
+            // If we're set to match_parent for height, then we just set measure height to be the
+            // height of the parent, for now.
+            if(getLayoutParams().height == LayoutParams.MATCH_PARENT) {
+                columnHeight = mParentHeight;
+            } else {
+                if(DEBUG) Log.d(TAG, "Populating columns in onMeasure()");
+                fillList(0);
+                mColumns[findLongestColumnIndex(mColumns)].getBottom();
+            }
+        }
+
+		// The final height is the height of the longest column, plus padding.
+		this.mFinalHeight = columnHeight + mPaddingB + mPaddingT;
+        if(DEBUG) Log.d(TAG, "Final Measured Height: " + mFinalHeight);
 		setMeasuredDimension(parentWidth, this.mFinalHeight);
 	}
 	
@@ -545,7 +547,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	@Override
 	protected void onLayout(boolean changed, int l, int t, int r, int b) {
 		super.onLayout(changed, l, t, r, b);
-		Log.d("AntipodalWall",  "onLayout() called");
+        if(DEBUG) Log.d(TAG,  "onLayout() called");
 		// if we don't have an adapter, we don't need to do anything
 		if (mAdapter == null) {
 			return;
@@ -579,7 +581,7 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		if (getChildCount() == 0) {
-			Log.d("AntipodalWall", "Child Count 0. Returning false - touch event not handled.");
+            if(DEBUG) Log.d(TAG, "Child Count 0. Returning false - touch event not handled.");
 			return false;
 		}
 		switch (event.getAction()) {
@@ -674,6 +676,17 @@ public class AntipodalWallLayout extends AdapterView<Adapter> {
 		}
 		return column;
 	}
+    private int findLongestColumnIndex(Column[] columns) {
+        int maxValue = columns[0].getBottom();
+        int column = 0;
+        for (int i = 1; i < columns.length; i++) {
+            if (columns[i].getBottom() > maxValue) {
+                maxValue = columns[i].getBottom();
+                column = i;
+            }
+        }
+        return column;
+    }
 
 	@Override
 	public Adapter getAdapter() {
